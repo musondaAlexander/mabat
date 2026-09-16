@@ -75,3 +75,18 @@ Network, S5 Snapshot + watch, S6 Hardening.
 
 It is excluded from ruff and will be deleted in Sprint 1 once `mabat show cpu` reproduces
 what it prints (including the Windows L3-cache WMI fallback).
+
+## 2026-09-16 — Guard tests approved as drafted
+
+The user approved `tests/guards/` (boundary R1–R7, serialisation S1–S4, degradation D1–D3,
+privacy P1–P2) without changes. Hostnames, usernames, IPs and MAC addresses remain
+permitted in payloads; masking them stays a backlog redaction feature. From this point the
+guards may not be weakened, skipped or deleted without explicit sign-off recorded here.
+
+## 2026-09-16 — Sections call platform helpers through the module, not bare names
+
+Degradation guard D1 simulates missing backends by monkeypatching
+`mabat._shared.platform.optional_import` / `run_command` / `run_powershell`. A section that
+did `from mabat._shared.platform import optional_import` would bind its own copy and dodge
+the simulation. Convention: sections write `from mabat._shared import platform as plat` and
+call `plat.optional_import(...)`, so the guard exercises the real degraded path.
