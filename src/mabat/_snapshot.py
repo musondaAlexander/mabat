@@ -9,12 +9,13 @@ from __future__ import annotations
 
 import platform as _platform
 from collections.abc import Callable, Mapping
-from dataclasses import dataclass, fields
+from dataclasses import dataclass, field, fields
 from datetime import datetime
 from typing import Any
 
 from mabat._shared.models import Section, now
 from mabat._shared.platform import PLATFORM_NAME
+from mabat.sections.cpu import CpuReport, cpu
 
 type Collector = Callable[[], Section[Any]]
 
@@ -26,8 +27,8 @@ class Snapshot:
     collected_at: datetime
     hostname: str
     platform: str
-    # Domain sections are appended below, in dependency order, e.g.
-    #   cpu: Section[CpuReport] = field(metadata={COLLECTOR_KEY: collect_cpu})
+    # Domain sections, in collection order. Each field's metadata names its collector.
+    cpu: Section[CpuReport] = field(metadata={COLLECTOR_KEY: cpu})
 
 
 def collectors() -> Mapping[str, Collector]:

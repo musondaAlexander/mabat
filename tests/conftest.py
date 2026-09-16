@@ -13,9 +13,12 @@ from mabat._shared import config
 def _fresh_settings(
     monkeypatch: pytest.MonkeyPatch, tmp_path_factory: pytest.TempPathFactory
 ) -> Iterator[None]:
-    """Isolate every test from a developer's local ``mabat.toml`` and ``$MABAT_CONFIG``."""
+    """Isolate every test from a developer's local ``mabat.toml`` and ``$MABAT_CONFIG``,
+    and make sampling non-blocking so the suite stays fast."""
     monkeypatch.delenv(config.ENV_CONFIG_PATH, raising=False)
-    monkeypatch.chdir(tmp_path_factory.mktemp("cwd"))
+    cwd = tmp_path_factory.mktemp("cwd")
+    (cwd / config.LOCAL_CONFIG_NAME).write_text("[sampling]\ncpu_sample_seconds = 0.0\n")
+    monkeypatch.chdir(cwd)
     config.settings.cache_clear()
     yield
     config.settings.cache_clear()
