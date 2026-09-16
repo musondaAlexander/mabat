@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from rich.console import Console
+from rich.console import Console, Group, RenderableType
 from rich.table import Table
 from rich.text import Text
 
@@ -87,20 +87,22 @@ def bar(percent: float | None, *, width: int = 20) -> Text:
     return Text(FILLED * filled + EMPTY * (width - filled), style=pct_text(percent).style)
 
 
-def kv_table(title: str | None = None) -> Table:
+def kv_table() -> Table:
     """Two-column key/value grid used by every detail view."""
     table = Table.grid(padding=(0, 2))
     table.add_column(style="bold cyan", no_wrap=True)
     table.add_column()
-    if title:
-        console.print(Text(title, style="bold"))
     return table
 
 
-def render_problems(section: Section[object]) -> None:
-    """Footer explaining what could not be read. Silent when there is nothing to say."""
+def heading(text: str) -> Text:
+    return Text(text, style="bold")
+
+
+def problems_footer(section: Section[object]) -> Table | None:
+    """Footer explaining what could not be read, or ``None`` when there is nothing to say."""
     if not section.problems:
-        return
+        return None
     table = Table.grid(padding=(0, 1))
     table.add_column(style="yellow", no_wrap=True)
     table.add_column(style="dim", no_wrap=True)
@@ -108,4 +110,9 @@ def render_problems(section: Section[object]) -> None:
     for problem in section.problems:
         # Text() so brackets in sources/details are never parsed as Rich markup
         table.add_row("!", Text(f"{problem.source} [{problem.kind.value}]"), Text(problem.detail))
-    console.print(table)
+    return table
+
+
+def assemble(*parts: RenderableType | None) -> Group:
+    """Stack renderables vertically, skipping ``None`` entries."""
+    return Group(*(part for part in parts if part is not None))

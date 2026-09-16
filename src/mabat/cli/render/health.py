@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+from rich.console import RenderableType
 from rich.table import Table
 from rich.text import Text
 
 from mabat._health import Health, ProviderStatus
-from mabat.cli.render.common import console
+from mabat.cli.render.common import assemble
 
 OK = "[green]yes[/green]"
 NO = "[red]no[/red]"
@@ -19,7 +20,7 @@ def _availability(provider: ProviderStatus) -> str:
     return NO if provider.required else OPTIONAL_NO
 
 
-def render_health(report: Health) -> None:
+def render_health(report: Health) -> RenderableType:
     table = Table(title=f"mabat {report.mabat_version} health", title_justify="left")
     table.add_column("provider", style="bold")
     table.add_column("available", justify="center")
@@ -36,13 +37,15 @@ def render_health(report: Health) -> None:
             Text(provider.detail),
         )
 
-    console.print(table)
     status = (
-        "[green]core providers available[/green]"
+        Text("core providers available", style="green")
         if report.ok
-        else "[red]core providers missing[/red]"
+        else Text("core providers missing", style="red")
     )
-    console.print(
-        f"{report.platform_release} | Python {report.python} | "
-        f"{'elevated' if report.is_admin else 'not elevated'} | {status}"
+    summary = Text.assemble(
+        f"{report.platform_release} | Python {report.python} | ",
+        "elevated" if report.is_admin else "not elevated",
+        " | ",
+        status,
     )
+    return assemble(table, summary)

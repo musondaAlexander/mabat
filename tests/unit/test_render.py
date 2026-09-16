@@ -57,16 +57,27 @@ def test_bar_is_proportional_and_clamped() -> None:
     assert common.bar(-5, width=4).plain == common.EMPTY * 4
 
 
-def test_render_problems_lists_each_problem(monkeypatch: pytest.MonkeyPatch) -> None:
-    capture = Console(record=True, width=120, force_terminal=False)
-    monkeypatch.setattr(common, "console", capture)
+def test_problems_footer_lists_each_problem() -> None:
     section: Section[int] = Section(
         name="x",
         collected_at=datetime(2026, 1, 1, tzinfo=UTC),
         data=None,
-        problems=(Problem("nvml", ProblemKind.MISSING_DEPENDENCY, "pip install nvidia-ml-py"),),
+        problems=(Problem("nvml", ProblemKind.MISSING_DEPENDENCY, "pip install [nvidia-ml-py]"),),
     )
-    common.render_problems(section)
+    footer = common.problems_footer(section)
+    assert footer is not None
+    capture = Console(record=True, width=120, force_terminal=False)
+    capture.print(footer)
     text = capture.export_text()
     assert "nvml [missing_dependency]" in text
-    assert "pip install nvidia-ml-py" in text
+    assert "pip install [nvidia-ml-py]" in text  # brackets survive: not parsed as markup
+
+
+def test_problems_footer_is_none_without_problems() -> None:
+    section: Section[int] = Section(name="x", collected_at=datetime(2026, 1, 1, tzinfo=UTC), data=1)
+    assert common.problems_footer(section) is None
+
+
+def test_assemble_skips_none() -> None:
+    group = common.assemble(common.heading("a"), None, common.heading("b"))
+    assert len(group.renderables) == 2

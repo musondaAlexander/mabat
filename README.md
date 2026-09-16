@@ -22,6 +22,10 @@ print(mabat.to_json(mabat.snapshot(), indent=2))  # everything, as JSON
 $ mabat show cpu            # identity, caches, per-core usage, frequency, counters
 $ mabat show memory         # RAM and swap
 $ mabat show cpu --json     # the exact payload the library returns
+$ mabat watch cpu           # live view, refreshed every second; Ctrl+C to stop
+$ mabat watch cpu -i 0.5    # faster refresh
+$ mabat watch memory --json # one JSON document per line (NDJSON), forever - pipe it
+$ mabat watch cpu -n 10     # stop after 10 readings
 $ mabat health              # which data sources work here; exit 1 if a core one is missing
 ```
 

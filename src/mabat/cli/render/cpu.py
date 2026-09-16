@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from rich.console import RenderableType
 from rich.table import Table
 from rich.text import Text
 
@@ -9,23 +10,23 @@ from mabat._shared.models import Section
 from mabat.cli.render.common import (
     DOT,
     ELLIPSIS,
+    assemble,
     bar,
-    console,
     fmt_bytes,
     fmt_hz,
     fmt_int,
     fmt_seconds,
+    heading,
     kv_table,
     pct_text,
-    render_problems,
+    problems_footer,
 )
 from mabat.sections.cpu import CpuIdentity, CpuReport, CpuUsage
 
 _FLAGS_SHOWN = 8
 
 
-def _identity(identity: CpuIdentity) -> None:
-    console.print(Text(identity.brand or "Unknown CPU", style="bold"))
+def _identity(identity: CpuIdentity) -> RenderableType:
     table = kv_table()
     cores = "-"
     if identity.physical_cores or identity.logical_cores:
@@ -52,14 +53,12 @@ def _identity(identity: CpuIdentity) -> None:
         hidden = len(identity.flags) - _FLAGS_SHOWN
         more = f" {ELLIPSIS} +{hidden} more" if hidden > 0 else ""
         table.add_row("flags", f"{len(identity.flags)}: {shown}{more}")
-    console.print(table)
+    return assemble(heading(identity.brand or "Unknown CPU"), table)
 
 
-def _usage(usage: CpuUsage) -> None:
+def _usage(usage: CpuUsage) -> RenderableType:
     window = f"{usage.sample_seconds:g} s sample" if usage.sample_seconds else "since last call"
-    console.print(
-        Text.assemble(("Usage ", "bold"), (f"({window})  ", "dim"), pct_text(usage.percent))
-    )
+    title = Text.assemble(("Usage ", "bold"), (f"({window})  ", "dim"), pct_text(usage.percent))
 
     cores = Table.grid(padding=(0, 1))
     cores.add_column(style="dim", no_wrap=True)
@@ -67,7 +66,6 @@ def _usage(usage: CpuUsage) -> None:
     cores.add_column(justify="right", no_wrap=True)
     for index, percent in enumerate(usage.per_core_percent):
         cores.add_row(f"core {index:>2}", bar(percent), pct_text(percent))
-    console.print(cores)
 
     table = kv_table()
     if usage.frequency:
@@ -102,17 +100,16 @@ def _usage(usage: CpuUsage) -> None:
     if usage.load_average:
         one, five, fifteen = usage.load_average
         table.add_row("load average", f"{one:.2f}  {five:.2f}  {fifteen:.2f}  (1 / 5 / 15 min)")
-    console.print(table)
+    return assemble(title, cores, table)
 
 
-def render_cpu(section: Section[CpuReport]) -> None:
+def render_cpu(section: Section[CpuReport]) -> RenderableType:
     report = section.data
     if report is None:
-        console.print(Text("CPU: unavailable", style="bold red"))
-    else:
-        if report.identity:
-            _identity(report.identity)
-        if report.usage:
-            console.print()
-            _usage(report.usage)
-    render_problems(section)
+        return assemble(Text("CPU: unavailable", style="bold red"), problems_footer(section))
+    return assemble(
+        _identity(report.identity) if report.identity else None,
+        Text("") if report.identity and report.usage else None,
+        _usage(report.usage) if report.usage else None,
+        problems_footer(section),
+    )

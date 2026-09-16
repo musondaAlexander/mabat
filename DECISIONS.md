@@ -130,3 +130,13 @@ Learned: the Windows console encoding and Rich markup were the two real bugs, bo
 by running the CLI in a legacy console; every future renderer follows the `Text` rule.
 Next sprint (S2) should reuse the `attempt()` per-reading pattern and add its renderers
 under `cli/render/` from the start.
+
+## 2026-09-16 — `watch` pulled forward from Sprint 5; renderers return renderables
+
+The user asked for a live CPU view after Sprint 1. Cost stated: nothing in S2–S4 depends
+on it, S5 shrinks to `snapshot --json` + polish; the plan stays valid. Doing it required
+renderers to *return* a `RenderableType` instead of printing, so the same view feeds
+`show` (print once) and `watch` (`rich.live.Live`). `watch --json` emits NDJSON, one
+document per line, so the live path and the pipe path are the same collector loop.
+Refresh timing is start-to-start: collection time (including a section's sample window)
+is absorbed into the interval rather than added to it.
