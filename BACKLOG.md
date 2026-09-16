@@ -21,12 +21,11 @@ without being pulled into a sprint plan first.
   numbers inside Docker reflect limits, not the host (reference doc §10).
 - **History / time series** — the `watch` command keeps only the live frame; persisting
   readings (SQLite, CSV) is a separate module.
-- **FastAPI and Streamlit front-ends** — documented as integrations in the hardening sprint;
-  shipping them as packages (`mabat-api`, `mabat-ui`) is a later project.
+- **FastAPI and Streamlit front-ends as packages** — `examples/` ships working apps;
+  publishing them as `mabat-api` / `mabat-ui` is a later project.
 
-- **Faster guard suite** — every `snapshot()` in `tests/guards` runs the full process scan
-  (~2.5 s on a slow host). A shared session-scoped snapshot fixture, or per-section latency
-  budgets, belongs in the hardening sprint.
+- ~~Faster guard suite~~ — done in S6: the suite pins `[processes] top_n = 0`
+  (count-only mode) and `scripts/bench.py` holds the latency budgets.
 - **Windows disk I/O time units** — psutil's `read_time`/`write_time` on Windows look
   implausibly small (≈1 s for 45 GiB read); verify the unit and, if needed, document or
   drop the columns on Windows.

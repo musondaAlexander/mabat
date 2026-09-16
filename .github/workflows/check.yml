@@ -25,3 +25,5 @@ jobs:
         run: python scripts/check.py
       - name: Health (smoke)
         run: mabat health
+      - name: Snapshot (smoke)
+        run: mabat snapshot --json --skip system > snapshot.json && python -c "import json; json.load(open('snapshot.json'))"

@@ -255,3 +255,20 @@ def test_system_on_this_machine_serialises() -> None:
             "threads",
             "created",
         }
+
+
+def test_top_n_zero_counts_without_scanning(monkeypatch: pytest.MonkeyPatch) -> None:
+    scanned: list[str] = []
+
+    def process_iter() -> Any:
+        scanned.append("scanned")
+        return iter([])
+
+    fake = _fake_psutil([FakeProcess(1, "a", 1.0, 1)], pids=lambda: [1, 2, 3])
+    fake.process_iter = process_iter
+    monkeypatch.setattr(plat, "optional_import", lambda name: fake)
+    section = mabat.system(top_n=0)
+    assert section.data is not None and section.data.processes is not None
+    assert section.data.processes.total == 3
+    assert section.data.processes.top == () and section.data.processes.top_n == 0
+    assert scanned == []

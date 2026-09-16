@@ -10,7 +10,7 @@ from mabat._shared import config
 def test_defaults_load_and_are_sane() -> None:
     s = config.load_settings()
     assert s.cpu_sample_seconds >= 0
-    assert s.top_processes > 0
+    assert s.top_processes >= 0  # conftest pins top_n = 0 for speed
     assert s.process_sample_seconds >= 0
     assert s.thresholds.warn_percent <= s.thresholds.critical_percent
     assert isinstance(s.hidden_interface_patterns, tuple)
@@ -52,6 +52,7 @@ def test_explicit_path_wins_and_must_exist(tmp_path: Path) -> None:
         ("[thresholds]\nwarn_percent = 99\ncritical_percent = 50\n", "must not exceed"),
         ("[processes]\ntop_n = -1\n", "not be negative"),
         ("[processes]\nsample_seconds = -0.5\n", "not be negative"),
+        ("[network]\nprobe_address = 'dns.google'\n", "IPv4 or IPv6 address"),
     ],
 )
 def test_invalid_settings_are_rejected_at_the_boundary(

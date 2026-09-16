@@ -101,7 +101,9 @@ def system(
     """OS identity, uptime, users, battery and the busiest processes.
 
     Process CPU figures are sampled over ``process_sample_seconds`` (settings default);
-    pass ``0`` for the non-blocking delta since the previous call.
+    pass ``0`` for the non-blocking delta since the previous call. ``top_n=0`` skips the
+    per-process scan entirely and only counts processes - the cheap mode for callers that
+    do not need a ranking.
     """
     conf = settings()
     limit = conf.top_processes if top_n is None else int(top_n)
@@ -119,23 +121,28 @@ def system(
         if psutil is None:
             problems.add("psutil", ProblemKind.MISSING_DEPENDENCY, "psutil is not installed")
             return SystemReport(os_identity, None, None, None, None) if os_identity else None
-        sampled = attempt(
-            problems,
-            "psutil.process_iter",
-            lambda: read_processes(
-                psutil, problems, window, limit, time.sleep, conf.hidden_process_names
-            ),
-        )
         summary = None
-        if sampled is not None:
-            top, total, inaccessible = sampled
-            summary = ProcessSummary(
-                total=total + inaccessible,
-                top=tuple(top),
-                top_n=limit,
-                sample_seconds=window,
-                inaccessible=inaccessible,
+        if limit == 0:
+            count = attempt(problems, "psutil.pids", lambda: len(psutil.pids()))
+            if count is not None:
+                summary = ProcessSummary(count, (), 0, 0.0, 0)
+        else:
+            sampled = attempt(
+                problems,
+                "psutil.process_iter",
+                lambda: read_processes(
+                    psutil, problems, window, limit, time.sleep, conf.hidden_process_names
+                ),
             )
+            if sampled is not None:
+                top, total, inaccessible = sampled
+                summary = ProcessSummary(
+                    total=total + inaccessible,
+                    top=tuple(top),
+                    top_n=limit,
+                    sample_seconds=window,
+                    inaccessible=inaccessible,
+                )
         return SystemReport(
             os=os_identity,
             uptime=read_uptime(psutil, problems),

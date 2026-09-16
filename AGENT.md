@@ -203,7 +203,9 @@ Starting is cheap with an agent; finishing is the scarce resource. These rules p
 | Queue/job monitoring | N/A — no background jobs |
 | Configuration as data | `_shared/defaults.toml` + `./mabat.toml` / `$MABAT_CONFIG` overrides, validated by `_shared/config.py` |
 | Guard tests (list) | boundary (no UI deps in core, sections isolated, subprocess/env confined); serialisation (every section → JSON, foreign objects rejected); degradation (collectors survive missing backends); privacy (no env vars, cmdlines or secrets in payloads) |
-| Human-eyes paths (list) | `tests/guards/`, `src/mabat/_shared/serialize.py`, `src/mabat/_shared/platform.py` |
+| Human-eyes paths (list) | `tests/guards/`, `src/mabat/_shared/serialize.py`, `src/mabat/_shared/platform.py`, the three `run_powershell` call sites (cpu/identity.py, gpu/wmi.py, sensors/providers.py) |
+| Latency budget | `python scripts/bench.py` (warm-call budgets per section; run before release) |
+| Runbook | `RUNBOOK.md` (stand up, run, configure, unlock sources, extend, release, troubleshoot) |
 | Not applicable | §1.3 state machines & audit records, §1.4 database rules, §1.5 rate limiting (read-only local observation, no persistence) |
 
 ### Sprint plan
@@ -215,8 +217,8 @@ Starting is cheap with an agent; finishing is the scarce resource. These rules p
 | S2 System + Storage ✅ | OS identity, uptime, users, battery, top-N processes; partitions, usage, I/O, SMART (pySMART) | S0 |
 | S3 GPU + Sensors ✅ | NVML + WMI-static GPU providers; LibreHardwareMonitor WMI temps/fans provider + null | S0 |
 | S4 Network ✅ | interfaces, addresses, link stats, counters, outbound IP, connections behind a flag | S0 |
-| S5 Snapshot + polish | `mabat snapshot --json`, `mabat watch` for every section, polish (`watch` itself landed after S1) | S1–S4 |
-| S6 Hardening | README with FastAPI + Streamlit wiring, latency budget, subprocess security sweep, runbook | S5 |
+| S5 Snapshot + polish ✅ | `mabat snapshot --json`, `watch snapshot`, `python -m mabat`, polish | S1–S4 |
+| S6 Hardening ✅ | README with FastAPI + Streamlit wiring, latency budget (`scripts/bench.py`), subprocess security sweep, RUNBOOK.md | S5 |
 
 ---
 

@@ -247,3 +247,65 @@ pipe handling in the entry point. Deviations: none. Learned: Windows adapter nam
 long; 80-column layouts need explicit column budgets (`min_width`, `overflow="fold"`)
 rather than letting Rich guess. All seven planned sections now exist; S5 is composition
 and polish, S6 hardening.
+
+## 2026-09-16 — Snapshot selection keeps the shape; options route by field metadata
+
+`snapshot(only=..., skip=...)` never removes fields: sections left out are present with
+`available=False` and a `skipped` problem, so FastAPI/Streamlit consumers get a stable
+schema whatever the caller trimmed. Collector options are declared on the `Snapshot`
+field (`OPTIONS_KEY`), and `snapshot(**options)` routes each one only to collectors that
+declared it - today `connections` -> `network`. Rejected: an `Optional` field per
+section (breaks the "one shape" promise) and special-casing network in the composer.
+
+## 2026-09-16 — One `Target` serves show, watch and snapshot
+
+`show`, `watch` and `snapshot` all resolve a name to a `Target` (collect + render +
+availability), with `snapshot` as a first-class target. Adding a command-level view
+therefore never duplicates collection or rendering logic. The overview renderer keeps one
+summary function per section in a dict, mirroring `RENDERERS`.
+
+## 2026-09-16 — Tests neutralise colour-forcing environment variables
+
+Rich honours `FORCE_COLOR` at console creation; a developer shell exporting it made every
+CLI assertion see ANSI codes. `tests/conftest.py` clears `FORCE_COLOR`/`CLICOLOR_FORCE`/
+`TTY_COMPATIBLE` and sets `NO_COLOR` before `mabat.cli` is imported.
+
+## 2026-09-16 — Sprint 5 retrospective
+
+Delivered: `snapshot(only/skip/**options)`, `problems_of`, `mabat snapshot` overview and
+JSON, `watch snapshot`, `python -m mabat`, interactive-mode hint when core providers are
+missing. Deviations: none. Learned: `__main__.py` must guard `main()` behind
+`__name__ == "__main__"` or the frozen-model guard (which imports every library module)
+runs the CLI. Suite is now ~60 s; the hardening sprint addresses it.
+
+## 2026-09-16 — `top_n = 0` is the cheap mode for the system section
+
+The per-process scan dominates every snapshot on hosts where handle access is slow. With
+`top_n = 0` the collector only counts processes (`psutil.pids()`, one call) and skips the
+scan; the test suite pins it and dropped from ~60 s to ~29 s. Callers that want the
+ranking keep the default. Rejected: caching process results across calls (stale rankings
+are worse than slow ones) and a session-scoped test fixture (would exercise a fake path).
+
+## 2026-09-16 — Latency budgets live in `scripts/bench.py`
+
+Warm-call budgets per section (cpu 1.5 s, memory 0.2 s, system 10 s, storage 3 s, gpu
+1.5 s, sensors 3 s, network 1 s, snapshot 20 s) are deliberately generous: they catch a
+collector that starts spawning a process per call, not slow hardware. Cold calls are
+reported, not judged. Not run in CI (runner variance); run before a release.
+
+## 2026-09-16 — `probe_address` must be an IP literal
+
+The outbound-IP probe promises to send nothing. A hostname in `[network] probe_address`
+would trigger a DNS query, so settings now reject anything `ipaddress.ip_address` cannot
+parse. Security sweep result: three PowerShell call sites (cpu cache, video adapters,
+hardware-monitor sensors), all fixed strings, all through `_shared/platform.py`, all with
+timeouts; no settings value reaches a command line.
+
+## 2026-09-16 — Sprint 6 retrospective (hardening)
+
+Delivered: cheap process mode, latency benchmark, FastAPI and Streamlit examples, README
+rewrite (integration, security & privacy, performance), RUNBOOK.md, CI snapshot smoke,
+probe-address validation. Deviations: none. The project is feature-complete for its v1
+scope; remaining items are in BACKLOG.md (live LibreHardwareMonitor verification,
+redaction, Radeon utilisation, cgroup awareness, history). Version left at 0.1.0 for the
+owner to bump at release.

@@ -8,6 +8,7 @@ reads environment variables (a guard test enforces it).
 from __future__ import annotations
 
 import functools
+import ipaddress
 import os
 import tomllib
 from collections.abc import Mapping
@@ -107,6 +108,11 @@ def _build(raw: Mapping[str, Any]) -> Settings:
     process_sample = float(raw["processes"]["sample_seconds"])
     if process_sample < 0:
         raise SettingsError("[processes] sample_seconds must not be negative")
+    probe = str(raw["network"]["probe_address"]).strip()
+    try:
+        ipaddress.ip_address(probe)  # an IP literal: a hostname would trigger a DNS lookup
+    except ValueError:
+        raise SettingsError("[network] probe_address must be an IPv4 or IPv6 address") from None
     return Settings(
         cpu_sample_seconds=sample,
         top_processes=top_n,
@@ -116,7 +122,7 @@ def _build(raw: Mapping[str, Any]) -> Settings:
         hidden_interface_patterns=tuple(
             str(pattern) for pattern in raw["network"]["hidden_interface_patterns"]
         ),
-        probe_address=str(raw["network"]["probe_address"]),
+        probe_address=probe,
     )
 
 
