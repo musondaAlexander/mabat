@@ -220,3 +220,30 @@ Deviations: none. Learned: probing the real NVML/WMI surface before modelling pa
 (the model matches what the board actually reports); the sensors section is correct but
 unverified against a live LibreHardwareMonitor - the parser is tested on a captured
 payload shape and should be re-checked once LHM is installed. Test suite: ~47 s.
+
+## 2026-09-16 — Network throughput is computed between calls in-process
+
+Counters are cumulative, so rates need two samples. Rather than blocking for a window,
+`network()` remembers the previous counters per interface (and the system total) and
+reports throughput since the last call in this process; the first call yields
+`rates=None`. This gives `watch network` a true rate per frame at zero extra latency and
+costs nothing for one-shot calls. Counter resets and clock regressions yield `None`.
+Rejected: a blocking sample window (adds latency to every snapshot for a number most
+callers do not need).
+
+## 2026-09-16 — Connections are opt-in and also a standalone section
+
+The socket table is large (1,100 rows here), noisy and needs elevation on macOS, so it
+is excluded from `snapshot()` and from plain `network()`. `network(connections=True)`
+embeds it for API consumers; `mabat.connections()` / `mabat connections` return just the
+table for the netstat use case. Owning process *names* are resolved (cheap); command
+lines are never collected (privacy guard P2). The implementation module is `sockets.py`
+so the package can re-export the `connections()` function without shadowing a module.
+
+## 2026-09-16 — Sprint 4 retrospective
+
+Delivered: `sections/network`, `mabat show|watch network`, `mabat connections`, broken-
+pipe handling in the entry point. Deviations: none. Learned: Windows adapter names are
+long; 80-column layouts need explicit column budgets (`min_width`, `overflow="fold"`)
+rather than letting Rich guess. All seven planned sections now exist; S5 is composition
+and polish, S6 hardening.
