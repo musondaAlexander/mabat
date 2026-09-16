@@ -196,3 +196,10 @@ def test_run_line_exit_statuses() -> None:
     assert run_line(app, "show nope") == 2
     assert run_line(app, "bogus") == 2
     assert run_line(app, 'show "x') == 2
+
+
+def test_show_gpu_and_sensors_do_not_crash() -> None:
+    for name in ("gpu", "sensors"):
+        result = runner.invoke(app, ["show", name])
+        assert result.exit_code in (0, 1), result.output  # 1 = honestly unavailable here
+        assert "Traceback" not in result.output

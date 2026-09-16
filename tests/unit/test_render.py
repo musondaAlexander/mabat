@@ -146,3 +146,93 @@ def test_render_unavailable_sections() -> None:
     when = datetime(2026, 1, 1, tzinfo=UTC)
     assert "unavailable" in _render_to_text(render_system(Section("system", when, None)))
     assert "unavailable" in _render_to_text(render_storage(Section("storage", when, None)))
+
+
+def test_temp_text_uses_sensor_limit_or_settings() -> None:
+    limits = settings().thresholds
+    assert common.temp_text(limits.temperature_warn_c - 1).style == "green"
+    assert common.temp_text(limits.temperature_warn_c).style == "yellow"
+    assert common.temp_text(limits.temperature_critical_c).style == "bold red"
+    assert common.temp_text(80, critical_c=100).style == "green"  # below 85 % of the limit
+    assert common.temp_text(86, critical_c=100).style == "yellow"
+    assert common.temp_text(100, critical_c=100).style == "bold red"
+    assert common.temp_text(None).plain == "-"
+
+
+def test_render_gpu_shows_telemetry_and_virtual_adapters() -> None:
+    from mabat.cli.render.gpu import render_gpu
+    from mabat.sections.gpu import GpuClocks, GpuDevice, GpuMemory, GpuReport, GpuTelemetry
+
+    telemetry = GpuTelemetry(
+        memory=GpuMemory(4096, 1024, 3072, 25.0),
+        utilization_percent=42.0,
+        memory_controller_percent=7.0,
+        encoder_percent=3.0,
+        decoder_percent=0.0,
+        temperature_c=51,
+        temperature_slowdown_c=97,
+        power_watts=6.7,
+        power_limit_watts=80.0,
+        fan_percent=None,
+        clocks=GpuClocks(210, 405, 2100),
+        performance_state=8,
+        pcie_generation=1,
+        pcie_width=8,
+        processes=2,
+    )
+    real = GpuDevice(
+        "RTX [3050]",
+        "NVIDIA",
+        ("nvml",),
+        True,
+        "610.88",
+        4096,
+        "01:00.0",
+        None,
+        None,
+        None,
+        None,
+        telemetry,
+    )
+    virtual = GpuDevice(
+        "Parsec", "Parsec", ("wmi",), False, "0.45", None, None, None, None, None, None, None
+    )
+    section: Section[GpuReport] = Section(
+        name="gpu",
+        collected_at=datetime(2026, 1, 1, tzinfo=UTC),
+        data=GpuReport((real, virtual), "610.88"),
+    )
+    text = _render_to_text(render_gpu(section))
+    assert "RTX [3050]" in text and "(virtual adapter)" in text
+    assert "42.0 %" in text and "1.0 KiB of 4.0 KiB" in text
+    assert "51 C" in text and "slowdown at 97 C" in text
+    assert (
+        "6.7 W of 80 W" in text
+        and "P8" in text
+        and "PCIe gen1 x8" in text
+        and "2 processes" in text
+    )
+    assert "fan" not in text  # unsupported reading is simply absent
+
+
+def test_render_sensors_groups_readings() -> None:
+    from mabat.cli.render.sensors import render_sensors
+    from mabat.sections.sensors import Fan, Power, SensorsReport, Temperature
+
+    report = SensorsReport(
+        provider="librehardwaremonitor",
+        temperatures=(
+            Temperature("AMD Ryzen", "Tctl", 61.5, None, None),
+            Temperature("nvme", "Composite", 45.0, 70.0, 85.0),
+        ),
+        fans=(Fan("GPU", "Fan #1", 1200.0),),
+        powers=(Power("AMD Ryzen", "Package", 12.25),),
+    )
+    section: Section[SensorsReport] = Section(
+        name="sensors", collected_at=datetime(2026, 1, 1, tzinfo=UTC), data=report
+    )
+    text = _render_to_text(render_sensors(section))
+    assert "via librehardwaremonitor" in text
+    assert "Temperatures" in text and "62 C" in text and "high 70, critical 85" in text
+    assert "Fans" in text and "1200 rpm" in text
+    assert ("Power" in text and "12.2 W" in text) or "12.3 W" in text

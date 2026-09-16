@@ -79,6 +79,25 @@ def pct_text(percent: float | None) -> Text:
     return Text(f"{percent:.1f} %", style=style)
 
 
+def temp_text(celsius: float | None, critical_c: float | None = None) -> Text:
+    """A temperature coloured by the sensor's own critical limit when it has one (warning
+    from 85 % of it), else by the configured Celsius thresholds."""
+    if celsius is None:
+        return Text("-", style="dim")
+    limits = settings().thresholds
+    if critical_c:
+        warn, critical = 0.85 * critical_c, critical_c
+    else:
+        warn, critical = limits.temperature_warn_c, limits.temperature_critical_c
+    if celsius >= critical:
+        style = "bold red"
+    elif celsius >= warn:
+        style = "yellow"
+    else:
+        style = "green"
+    return Text(f"{celsius:.0f} C", style=style)
+
+
 def bar(percent: float | None, *, width: int = 20) -> Text:
     """A text bar for a 0-100 value, coloured like ``pct_text``."""
     if percent is None:
@@ -91,7 +110,7 @@ def kv_table() -> Table:
     """Two-column key/value grid used by every detail view."""
     table = Table.grid(padding=(0, 2))
     table.add_column(style="bold cyan", no_wrap=True)
-    table.add_column()
+    table.add_column(overflow="fold")  # wrap long values (paths, URLs) instead of truncating
     return table
 
 
@@ -106,7 +125,7 @@ def problems_footer(section: Section[object]) -> Table | None:
     table = Table.grid(padding=(0, 1))
     table.add_column(style="yellow", no_wrap=True)
     table.add_column(style="dim", no_wrap=True)
-    table.add_column()
+    table.add_column(overflow="fold")
     for problem in section.problems:
         # Text() so brackets in sources/details are never parsed as Rich markup
         table.add_row("!", Text(f"{problem.source} [{problem.kind.value}]"), Text(problem.detail))
