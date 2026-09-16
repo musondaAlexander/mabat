@@ -114,12 +114,12 @@ a `Problem` whose `kind` (`missing_dependency`, `unsupported_platform`,
 
 ## Use it from FastAPI or Streamlit
 
-Working examples live in [`examples/`](examples/):
+Working examples live in [`examples/`](https://github.com/musondaAlexander/mabat/blob/main/examples):
 
-- [`examples/fastapi_app.py`](examples/fastapi_app.py) — `/health`, `/snapshot?only=…&skip=…`,
+- [`examples/fastapi_app.py`](https://github.com/musondaAlexander/mabat/blob/main/examples/fastapi_app.py) — `/health`, `/snapshot?only=…&skip=…`,
   `/sections/{name}`, `/connections`, `/problems`. Run with
   `uvicorn examples.fastapi_app:app --reload`.
-- [`examples/streamlit_app.py`](examples/streamlit_app.py) — headline metrics plus one panel
+- [`examples/streamlit_app.py`](https://github.com/musondaAlexander/mabat/blob/main/examples/streamlit_app.py) — headline metrics plus one panel
   per section, auto-refreshing. Run with `streamlit run examples/streamlit_app.py`.
 
 The pattern in both is the same three lines:
@@ -222,6 +222,11 @@ python scripts/check.py --fix  # auto-format and auto-fix first
 python scripts/bench.py        # per-section latency against budgets
 ```
 
-`RUNBOOK.md` covers installing, running, configuring, extending and troubleshooting from
-a fresh clone. `AGENT.md` holds the engineering directives, `DECISIONS.md` the decision
-log and `BACKLOG.md` the deferred scope.
+[`RUNBOOK.md`](https://github.com/musondaAlexander/mabat/blob/main/RUNBOOK.md) covers installing, running, configuring, extending and
+troubleshooting from a fresh clone. [`CHANGELOG.md`](https://github.com/musondaAlexander/mabat/blob/main/CHANGELOG.md) lists releases.
+[`AGENT.md`](https://github.com/musondaAlexander/mabat/blob/main/AGENT.md) holds the engineering directives, [`DECISIONS.md`](https://github.com/musondaAlexander/mabat/blob/main/DECISIONS.md)
+the decision log and [`BACKLOG.md`](https://github.com/musondaAlexander/mabat/blob/main/BACKLOG.md) the deferred scope.
+
+## License
+
+MIT - see [`LICENSE`](https://github.com/musondaAlexander/mabat/blob/main/LICENSE).

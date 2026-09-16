@@ -96,15 +96,78 @@ every partial section at the bottom.
 7. `tests/unit/sections/test_<name>.py` — fake the backend; cover the degraded paths.
 8. `python scripts/check.py`; update `DECISIONS.md` for any notable choice.
 
-## 7. Release
+## 7. Release to PyPI
 
-1. `python scripts/check.py` and `python scripts/bench.py` green.
-2. Bump `version` in `pyproject.toml`; `mabat.__version__` follows automatically.
-3. `python -m pip install build && python -m build` → `dist/mabat-<version>-py3-none-any.whl`.
-4. Tag: `git tag v<version> && git push --tags`.
+The package name `mabat` is registered to nobody yet; the first upload claims it.
+Everything below except the accounts and the final upload is scripted.
+
+### 7.1 One-time setup
+
+1. Create accounts on <https://test.pypi.org> and <https://pypi.org> (both, they are
+   separate) and enable two-factor authentication on each.
+2. **Token route** (simplest for a first release): on each site, *Account settings ->
+   API tokens -> Add token* (scope "entire account" for the very first upload; scope it to
+   the project afterwards). Put them in `~/.pypirc`:
+
+   ```ini
+   [testpypi]
+   username = __token__
+   password = pypi-...   # the TestPyPI token
+
+   [pypi]
+   username = __token__
+   password = pypi-...   # the PyPI token
+   ```
+
+3. **Trusted-Publishing route** (no tokens on your machine): after the first manual
+   upload, on pypi.org open the project -> *Publishing* -> add a GitHub publisher with
+   owner `musondaAlexander`, repository `mabat`, workflow `publish.yml`, environment
+   `pypi`. From then on `.github/workflows/publish.yml` publishes whenever you push a
+   `v*` tag.
+
+### 7.2 Every release
+
+```console
+python scripts/check.py                  # all gates green
+mabat bench                              # nothing over budget
+```
+
+1. Bump `version` in `pyproject.toml` (PyPI never accepts the same version twice) and
+   move the `[Unreleased]` notes in `CHANGELOG.md` under the new version with today's date.
+2. Build and validate:
+
+   ```console
+   pip install build twine
+   Remove-Item -Recurse -Force dist      # rm -rf dist on Linux/macOS
+   python -m build                       # dist/mabat-<version>.tar.gz + .whl
+   twine check dist/*                    # README renders, metadata complete
+   ```
+
+3. Rehearse on TestPyPI, then install from it into a scratch venv:
+
+   ```console
+   twine upload -r testpypi dist/*
+   python -m venv scratch && scratch\Scriptsctivate
+   pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple "mabat[cli]"
+   mabat health && mabat show memory
+   deactivate
+   ```
+
+4. Publish for real, tag, push:
+
+   ```console
+   twine upload dist/*
+   git commit -am "release: v<version>"
+   git tag v<version>
+   git push && git push --tags           # the tag also triggers publish.yml once Trusted Publishing is set up
+   ```
+
+5. Check <https://pypi.org/project/mabat/>: description, links, classifiers, and
+   `pip install mabat` from a clean venv.
 
 CI (`.github/workflows/check.yml`) runs the gates on Windows and Ubuntu for every push
-and pull request.
+and pull request; `publish.yml` re-runs them before any upload and refuses a tag that
+does not match `pyproject.toml`.
 
 ## 8. Troubleshooting
 
