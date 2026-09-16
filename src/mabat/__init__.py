@@ -15,12 +15,14 @@ from mabat._shared.models import Problem, ProblemKind, Section
 from mabat._shared.serialize import flatten, to_dict, to_json
 from mabat._snapshot import Snapshot, section_names, sections_of, snapshot
 from mabat.sections.cpu import CpuReport, cpu
+from mabat.sections.memory import MemoryReport, memory
 
 __version__ = version()
 
 __all__ = [
     "CpuReport",
     "Health",
+    "MemoryReport",
     "Problem",
     "ProblemKind",
     "ProviderStatus",
@@ -32,6 +34,7 @@ __all__ = [
     "flatten",
     "health",
     "load_settings",
+    "memory",
     "section_names",
     "sections_of",
     "settings",

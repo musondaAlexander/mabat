@@ -16,6 +16,7 @@ from typing import Any
 from mabat._shared.models import Section, now
 from mabat._shared.platform import PLATFORM_NAME
 from mabat.sections.cpu import CpuReport, cpu
+from mabat.sections.memory import MemoryReport, memory
 
 type Collector = Callable[[], Section[Any]]
 
@@ -29,6 +30,7 @@ class Snapshot:
     platform: str
     # Domain sections, in collection order. Each field's metadata names its collector.
     cpu: Section[CpuReport] = field(metadata={COLLECTOR_KEY: cpu})
+    memory: Section[MemoryReport] = field(metadata={COLLECTOR_KEY: memory})
 
 
 def collectors() -> Mapping[str, Collector]:
