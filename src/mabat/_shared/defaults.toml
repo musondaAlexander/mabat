@@ -1,0 +1,20 @@
+# Built-in defaults for mabat. Override any value with a `mabat.toml` in the working
+# directory, a file named by $MABAT_CONFIG, or a path passed to load_settings().
+# Vocabulary and tunables live here - in data - not in source.
+
+[sampling]
+# seconds psutil samples CPU utilisation over; 0 returns the delta since the last call
+cpu_sample_seconds = 0.5
+
+[processes]
+# how many processes the system section lists, ranked by CPU then memory
+top_n = 10
+
+[thresholds]
+# utilisation levels (percent) the CLI colours as warning / critical
+warn_percent = 80.0
+critical_percent = 95.0
+
+[network]
+# fnmatch patterns; matching interfaces are hidden from summaries (still shown with --all)
+hidden_interface_patterns = ["Loopback*", "lo"]
