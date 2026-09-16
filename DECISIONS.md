@@ -90,3 +90,43 @@ Degradation guard D1 simulates missing backends by monkeypatching
 did `from mabat._shared.platform import optional_import` would bind its own copy and dodge
 the simulation. Convention: sections write `from mabat._shared import platform as plat` and
 call `plat.optional_import(...)`, so the guard exercises the real degraded path.
+
+## 2026-09-16 — CPU identity is cached for the process lifetime
+
+`cpuinfo.get_cpu_info()` takes ~4 s on Windows (it re-launches Python to run CPUID) and
+the WMI cache query ~0.3 s. Identity cannot change while the machine is up, so both reads
+are `functools.cache`d; `mabat.cpu()` costs one sample window after the first call.
+`sections.cpu.identity.clear_cache()` exists for tests and hot-plug edge cases.
+Rejected: a time-based cache (needless complexity for immutable data).
+
+## 2026-09-16 — Overall CPU percent is the mean of the per-core sample
+
+One blocking `cpu_percent(interval, percpu=True)` call feeds both the per-core list and
+the overall figure, instead of a second blocking call for the aggregate. The mean of
+per-core utilisation over the same window is what Task Manager shows; the difference from
+psutil's own aggregate is noise. Rejected: two sequential samples (doubles latency).
+
+## 2026-09-16 — CLI glyphs adapt to the console encoding
+
+Block bars (U+2588/U+2591), the middle dot and the ellipsis raise `UnicodeEncodeError` on
+a cp1252 console, which Windows PowerShell 5.1 still uses by default. `cli/render/common.py`
+picks Unicode glyphs when `Console.encoding` is UTF-8 and ASCII (`#`, `-`, `|`, `...`)
+otherwise. Rejected: forcing UTF-8 output (garbles legacy consoles) and ASCII everywhere
+(ugly on modern terminals).
+
+## 2026-09-16 — Data-derived strings are rendered as `rich.text.Text`
+
+Rich parses `[...]` in plain strings as markup; a problem kind such as
+`[missing_dependency]` or an error message with brackets silently disappeared. Any string
+that originates from data (problem details, provider details) is wrapped in `Text` so it
+is printed verbatim. Static labels may keep using markup.
+
+## 2026-09-16 — Sprint 1 retrospective
+
+Delivered: `sections/cpu`, `sections/memory`, `mabat show cpu|memory`, `main.py` retired.
+Deviations: none from the plan; one kernel addition (`attempt()` and `collect` returning
+`None`) turned out to be needed by every section and was added before the first one.
+Learned: the Windows console encoding and Rich markup were the two real bugs, both caught
+by running the CLI in a legacy console; every future renderer follows the `Text` rule.
+Next sprint (S2) should reuse the `attempt()` per-reading pattern and add its renderers
+under `cli/render/` from the start.
