@@ -15,6 +15,7 @@ from mabat._shared.models import Problem, ProblemKind, Section
 from mabat._shared.serialize import flatten, to_dict, to_json
 from mabat._snapshot import Snapshot, collectors, section_names, sections_of, snapshot
 from mabat.sections.cpu import CpuReport, cpu
+from mabat.sections.gpu import GpuReport, gpu
 from mabat.sections.memory import MemoryReport, memory
 from mabat.sections.storage import StorageReport, storage
 from mabat.sections.system import SystemReport, system
@@ -23,6 +24,7 @@ __version__ = version()
 
 __all__ = [
     "CpuReport",
+    "GpuReport",
     "Health",
     "MemoryReport",
     "Problem",
@@ -37,6 +39,7 @@ __all__ = [
     "collectors",
     "cpu",
     "flatten",
+    "gpu",
     "health",
     "load_settings",
     "memory",

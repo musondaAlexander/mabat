@@ -16,6 +16,7 @@ from typing import Any
 from mabat._shared.models import Section, now
 from mabat._shared.platform import PLATFORM_NAME
 from mabat.sections.cpu import CpuReport, cpu
+from mabat.sections.gpu import GpuReport, gpu
 from mabat.sections.memory import MemoryReport, memory
 from mabat.sections.storage import StorageReport, storage
 from mabat.sections.system import SystemReport, system
@@ -35,6 +36,7 @@ class Snapshot:
     memory: Section[MemoryReport] = field(metadata={COLLECTOR_KEY: memory})
     system: Section[SystemReport] = field(metadata={COLLECTOR_KEY: system})
     storage: Section[StorageReport] = field(metadata={COLLECTOR_KEY: storage})
+    gpu: Section[GpuReport] = field(metadata={COLLECTOR_KEY: gpu})
 
 
 def collectors() -> Mapping[str, Collector]:
