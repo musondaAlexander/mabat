@@ -189,3 +189,34 @@ click: command failures are handled by duck typing (`exc.show()`, `exc.exit_code
 any other exception is printed and swallowed - nothing can kill the session. A bare
 section name is rewritten to `show <section>` as a convenience. Rejected: a separate
 `cmd.Cmd` subclass with its own verbs (a second surface that would drift from the CLI).
+
+## 2026-09-16 — GPU: NVML per-reading guards, WMI for everything else, merged by name
+
+Boards differ in what NVML exposes (this laptop rejects fan speed), so every NVML getter is
+guarded individually and the unsupported ones are reported as one `not_present` problem
+rather than blanking the section. On Windows `Win32_VideoController` is the only way to
+see non-NVIDIA adapters; its rows are cached per process (~1 s per PowerShell launch) and
+merged with NVML devices by case-insensitive name, NVML data winning. `PNPDeviceID`
+starting with `PCI\` marks physical adapters; virtual displays are kept but flagged.
+Rejected: hiding virtual adapters (a user observing their PC should see what Windows
+sees) and per-call WMI queries (`watch gpu` would cost a PowerShell launch per frame).
+
+## 2026-09-16 — Sensors: one PowerShell launch probes both hardware-monitor namespaces
+
+There is no built-in Windows API for CPU temperature; LibreHardwareMonitor (and the older
+OpenHardwareMonitor) publish identical WMI schemas while running. A single fixed PowerShell
+script tries both namespaces and reports which answered, halving the cost of the common
+"not running" answer (2.0 s → 0.8 s) and keeping the Python side to one parse path.
+"Invalid namespace" means not running (`missing_dependency` with install guidance); any
+other error is a `backend_error`. Temperature colouring uses the sensor's own critical
+limit when present (warning from 85 % of it), else `[thresholds] temperature_*_c` from
+`defaults.toml`. Rejected: a TTL cache for the negative result (a monitor started
+mid-session would go unnoticed).
+
+## 2026-09-16 — Sprint 3 retrospective
+
+Delivered: `sections/gpu`, `sections/sensors`, renderers, `show|watch gpu|sensors`.
+Deviations: none. Learned: probing the real NVML/WMI surface before modelling paid off
+(the model matches what the board actually reports); the sensors section is correct but
+unverified against a live LibreHardwareMonitor - the parser is tested on a captured
+payload shape and should be re-checked once LHM is installed. Test suite: ~47 s.

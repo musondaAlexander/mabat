@@ -213,7 +213,7 @@ Starting is cheap with an agent; finishing is the scarce resource. These rules p
 | S0 Foundation ✅ | scaffold, gates, `_shared`, health, snapshot skeleton, CLI stub, guard drafts | — |
 | S1 CPU + Memory ✅ | `sections/cpu`, `sections/memory`, `mabat show cpu\|memory` | S0 |
 | S2 System + Storage ✅ | OS identity, uptime, users, battery, top-N processes; partitions, usage, I/O, SMART (pySMART) | S0 |
-| S3 GPU + Sensors | NVML + WMI-static GPU providers; LibreHardwareMonitor WMI temps/fans provider + null | S0 |
+| S3 GPU + Sensors ✅ | NVML + WMI-static GPU providers; LibreHardwareMonitor WMI temps/fans provider + null | S0 |
 | S4 Network | interfaces, addresses, link stats, counters, outbound IP, connections behind a flag | S0 |
 | S5 Snapshot + polish | `mabat snapshot --json`, `mabat watch` for every section, polish (`watch` itself landed after S1) | S1–S4 |
 | S6 Hardening | README with FastAPI + Streamlit wiring, latency budget, subprocess security sweep, runbook | S5 |

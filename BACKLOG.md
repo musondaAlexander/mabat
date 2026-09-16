@@ -31,6 +31,9 @@ without being pulled into a sprint plan first.
   implausibly small (≈1 s for 45 GiB read); verify the unit and, if needed, document or
   drop the columns on Windows.
 
+- **Verify the sensors parser against a live LibreHardwareMonitor** — built from the
+  documented Hardware/Sensor WMI schema; confirm labels and parents once LHM is installed.
+
 ## Tooling
 
 - `pre-commit` hooks mirroring `scripts/check.py`, if commits without running the gates
