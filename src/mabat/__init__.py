@@ -17,6 +17,7 @@ from mabat._snapshot import Snapshot, collectors, section_names, sections_of, sn
 from mabat.sections.cpu import CpuReport, cpu
 from mabat.sections.gpu import GpuReport, gpu
 from mabat.sections.memory import MemoryReport, memory
+from mabat.sections.network import ConnectionsReport, NetworkReport, connections, network
 from mabat.sections.sensors import SensorsReport, sensors
 from mabat.sections.storage import StorageReport, storage
 from mabat.sections.system import SystemReport, system
@@ -24,10 +25,12 @@ from mabat.sections.system import SystemReport, system
 __version__ = version()
 
 __all__ = [
+    "ConnectionsReport",
     "CpuReport",
     "GpuReport",
     "Health",
     "MemoryReport",
+    "NetworkReport",
     "Problem",
     "ProblemKind",
     "ProviderStatus",
@@ -39,12 +42,14 @@ __all__ = [
     "SystemReport",
     "__version__",
     "collectors",
+    "connections",
     "cpu",
     "flatten",
     "gpu",
     "health",
     "load_settings",
     "memory",
+    "network",
     "section_names",
     "sections_of",
     "sensors",

@@ -23,5 +23,7 @@ temperature_warn_c = 75.0
 temperature_critical_c = 90.0
 
 [network]
-# fnmatch patterns; matching interfaces are hidden from summaries (still shown with --all)
+# fnmatch patterns; matching interfaces are collapsed in the CLI view (always in the data)
 hidden_interface_patterns = ["Loopback*", "lo"]
+# address the outbound-IP probe "connects" a UDP socket to; no packet is ever sent
+probe_address = "8.8.8.8"

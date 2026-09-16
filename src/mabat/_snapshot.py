@@ -18,6 +18,7 @@ from mabat._shared.platform import PLATFORM_NAME
 from mabat.sections.cpu import CpuReport, cpu
 from mabat.sections.gpu import GpuReport, gpu
 from mabat.sections.memory import MemoryReport, memory
+from mabat.sections.network import NetworkReport, network
 from mabat.sections.sensors import SensorsReport, sensors
 from mabat.sections.storage import StorageReport, storage
 from mabat.sections.system import SystemReport, system
@@ -39,6 +40,7 @@ class Snapshot:
     storage: Section[StorageReport] = field(metadata={COLLECTOR_KEY: storage})
     gpu: Section[GpuReport] = field(metadata={COLLECTOR_KEY: gpu})
     sensors: Section[SensorsReport] = field(metadata={COLLECTOR_KEY: sensors})
+    network: Section[NetworkReport] = field(metadata={COLLECTOR_KEY: network})
 
 
 def collectors() -> Mapping[str, Collector]:
