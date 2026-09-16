@@ -147,7 +147,7 @@ mabat bench                              # nothing over budget
 
    ```console
    twine upload -r testpypi dist/*
-   python -m venv scratch && scratch\Scriptsctivate
+   python -m venv scratch; scratch\Scripts\activate    # Linux/macOS: source scratch/bin/activate
    pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple "mabat[cli]"
    mabat health && mabat show memory
    deactivate
