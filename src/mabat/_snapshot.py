@@ -35,10 +35,14 @@ class Snapshot:
     hostname: str
     platform: str
     # Domain sections, in collection order. Each field's metadata names its collector.
-    cpu: Section[CpuReport] = field(metadata={COLLECTOR_KEY: cpu})
+    cpu: Section[CpuReport] = field(metadata={COLLECTOR_KEY: cpu, OPTIONS_KEY: ("sample_seconds",)})
     memory: Section[MemoryReport] = field(metadata={COLLECTOR_KEY: memory})
-    system: Section[SystemReport] = field(metadata={COLLECTOR_KEY: system})
-    storage: Section[StorageReport] = field(metadata={COLLECTOR_KEY: storage})
+    system: Section[SystemReport] = field(
+        metadata={COLLECTOR_KEY: system, OPTIONS_KEY: ("top_n", "process_sample_seconds")}
+    )
+    storage: Section[StorageReport] = field(
+        metadata={COLLECTOR_KEY: storage, OPTIONS_KEY: ("all_partitions", "smart")}
+    )
     gpu: Section[GpuReport] = field(metadata={COLLECTOR_KEY: gpu})
     sensors: Section[SensorsReport] = field(metadata={COLLECTOR_KEY: sensors})
     network: Section[NetworkReport] = field(
@@ -97,8 +101,9 @@ def snapshot(
 ) -> Snapshot:
     """Collect every section (or just ``only`` minus ``skip``) into one immutable snapshot.
 
-    Keyword options are routed to the collectors that declare them, e.g.
-    ``snapshot(connections=True)`` reaches ``network()``. Skipped sections are present
+    Keyword options are routed to the collectors that declare them (see
+    :func:`snapshot_options`): ``snapshot(connections=True, top_n=0, smart=False)`` reaches
+    ``network()``, ``system()`` and ``storage()`` respectively. Skipped sections are present
     with ``available=False`` and a ``skipped`` problem, so the shape never changes.
     """
     accepted = snapshot_options()

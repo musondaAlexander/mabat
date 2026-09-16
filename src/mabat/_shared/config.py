@@ -34,6 +34,21 @@ class Thresholds:
 
 
 @dataclass(frozen=True, slots=True)
+class SettingsSource:
+    """One place settings were looked for. ``kind`` is defaults, local, env or explicit."""
+
+    kind: str
+    path: str
+    applied: bool
+
+
+@dataclass(frozen=True, slots=True)
+class ResolvedSettings:
+    settings: Settings
+    sources: tuple[SettingsSource, ...]
+
+
+@dataclass(frozen=True, slots=True)
 class Settings:
     cpu_sample_seconds: float
     top_processes: int
@@ -126,31 +141,39 @@ def _build(raw: Mapping[str, Any]) -> Settings:
     )
 
 
-def _override_paths(explicit: Path | None) -> list[Path]:
-    candidates = [Path.cwd() / LOCAL_CONFIG_NAME]
+def _override_paths(explicit: Path | None) -> list[tuple[str, Path]]:
+    candidates = [("local", Path.cwd() / LOCAL_CONFIG_NAME)]
     from_env = os.environ.get(ENV_CONFIG_PATH)
     if from_env:
-        candidates.append(Path(from_env))
+        candidates.append(("env", Path(from_env)))
     if explicit is not None:
-        candidates.append(explicit)
+        candidates.append(("explicit", explicit))
     return candidates
+
+
+def resolve_settings(path: str | os.PathLike[str] | None = None) -> ResolvedSettings:
+    """Settings plus every place they were looked for, in precedence order (later wins)."""
+    defaults = resources.files("mabat._shared").joinpath("defaults.toml")
+    raw = tomllib.loads(defaults.read_text("utf-8"))
+    _validate(raw, "defaults.toml")
+    sources = [SettingsSource("defaults", str(defaults), True)]
+
+    explicit = Path(path) if path is not None else None
+    for kind, candidate in _override_paths(explicit):
+        if kind == "explicit" and not candidate.is_file():
+            raise SettingsError(f"settings file not found: {candidate}")
+        applied = candidate.is_file()
+        if applied:
+            override = _read_toml(candidate)
+            _validate(override, str(candidate))
+            raw = _merge(raw, override)
+        sources.append(SettingsSource(kind, str(candidate), applied))
+    return ResolvedSettings(settings=_build(raw), sources=tuple(sources))
 
 
 def load_settings(path: str | os.PathLike[str] | None = None) -> Settings:
     """Load settings from the built-in defaults plus any override files present."""
-    defaults_text = resources.files("mabat._shared").joinpath("defaults.toml").read_text("utf-8")
-    raw = tomllib.loads(defaults_text)
-    _validate(raw, "defaults.toml")
-
-    explicit = Path(path) if path is not None else None
-    for candidate in _override_paths(explicit):
-        if candidate == explicit and not candidate.is_file():
-            raise SettingsError(f"settings file not found: {candidate}")
-        if candidate.is_file():
-            override = _read_toml(candidate)
-            _validate(override, str(candidate))
-            raw = _merge(raw, override)
-    return _build(raw)
+    return resolve_settings(path).settings
 
 
 @functools.cache

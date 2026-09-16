@@ -93,7 +93,23 @@ def test_problems_of_flattens_every_section(monkeypatch: pytest.MonkeyPatch) -> 
 
 
 def test_snapshot_options_lists_declared_options() -> None:
-    assert mabat.snapshot_options() == {"connections": ("network",)}
+    assert mabat.snapshot_options() == {
+        "sample_seconds": ("cpu",),
+        "top_n": ("system",),
+        "process_sample_seconds": ("system",),
+        "all_partitions": ("storage",),
+        "smart": ("storage",),
+        "connections": ("network",),
+    }
+
+
+def test_snapshot_routes_every_declared_option() -> None:
+    snap = mabat.snapshot(only=["cpu", "system", "storage"], sample_seconds=0, top_n=0, smart=False)
+    assert snap.cpu.data is not None and snap.cpu.data.usage is not None
+    assert snap.cpu.data.usage.sample_seconds == 0.0
+    assert snap.system.data is not None and snap.system.data.processes is not None
+    assert snap.system.data.processes.top_n == 0
+    assert snap.storage.data is not None and snap.storage.data.smart is None
 
 
 def _section(name: str) -> Section[str]:

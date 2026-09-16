@@ -185,7 +185,14 @@ def test_cli_end_of_input_exits_cleanly() -> None:
 def test_cli_shell_alias_is_hidden_but_works() -> None:
     result = runner.invoke(app, ["shell"], input="quit\n")
     assert result.exit_code == 0
-    assert "shell" not in runner.invoke(app, ["--help"]).output
+    import typer
+
+    group = typer.main.get_command(app)
+    assert getattr(group, "commands")["shell"].hidden is True  # noqa: B009
+    assert not any(
+        line.strip().startswith("shell")
+        for line in runner.invoke(app, ["--help"]).output.splitlines()
+    )
 
 
 def test_run_line_exit_statuses() -> None:

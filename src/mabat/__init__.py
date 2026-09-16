@@ -10,7 +10,14 @@ from __future__ import annotations
 import logging
 
 from mabat._health import Health, ProviderStatus, health, version
-from mabat._shared.config import Settings, load_settings, settings
+from mabat._shared.config import (
+    ResolvedSettings,
+    Settings,
+    SettingsSource,
+    load_settings,
+    resolve_settings,
+    settings,
+)
 from mabat._shared.models import Problem, ProblemKind, Section
 from mabat._shared.serialize import flatten, to_dict, to_json
 from mabat._snapshot import (
@@ -42,9 +49,11 @@ __all__ = [
     "Problem",
     "ProblemKind",
     "ProviderStatus",
+    "ResolvedSettings",
     "Section",
     "SensorsReport",
     "Settings",
+    "SettingsSource",
     "Snapshot",
     "StorageReport",
     "SystemReport",
@@ -59,6 +68,7 @@ __all__ = [
     "memory",
     "network",
     "problems_of",
+    "resolve_settings",
     "section_names",
     "sections_of",
     "sensors",

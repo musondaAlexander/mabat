@@ -54,9 +54,9 @@ def _interface_row(table: Table, iface: Interface) -> None:
     )
 
 
-def _interfaces(interfaces: tuple[Interface, ...]) -> RenderableType:
-    shown = [i for i in interfaces if not i.hidden]
-    hidden = [i for i in interfaces if i.hidden]
+def _interfaces(interfaces: tuple[Interface, ...], show_hidden: bool) -> RenderableType:
+    shown = [i for i in interfaces if show_hidden or not i.hidden]
+    hidden = [] if show_hidden else [i for i in interfaces if i.hidden]
     table = Table(show_edge=False, pad_edge=False, box=None, header_style="bold")
     table.add_column("interface", overflow="fold", ratio=3)
     table.add_column("state", no_wrap=True)
@@ -71,7 +71,7 @@ def _interfaces(interfaces: tuple[Interface, ...]) -> RenderableType:
     note = None
     if hidden:
         names = ", ".join(i.name for i in hidden)
-        note = Text(f"{len(hidden)} hidden: {names} (present in --json)", style="dim")
+        note = Text(f"{len(hidden)} hidden: {names} (--all shows them)", style="dim")
     return assemble(heading("Interfaces  (MAC addresses and MTU in --json)"), table, note)
 
 
@@ -109,7 +109,7 @@ def _connections(report: ConnectionsReport) -> RenderableType:
     return assemble(title, table, note)
 
 
-def render_network(section: Section[NetworkReport]) -> RenderableType:
+def render_network(section: Section[NetworkReport], *, show_hidden: bool = False) -> RenderableType:
     report = section.data
     if report is None:
         return assemble(Text("Network: unavailable", style="bold red"), problems_footer(section))
@@ -132,7 +132,7 @@ def render_network(section: Section[NetworkReport]) -> RenderableType:
     return assemble(
         summary,
         Text(""),
-        _interfaces(report.interfaces) if report.interfaces else None,
+        _interfaces(report.interfaces, show_hidden) if report.interfaces else None,
         Text("") if report.connections else None,
         _connections(report.connections) if report.connections else None,
         problems_footer(section),

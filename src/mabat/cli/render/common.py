@@ -13,7 +13,8 @@ console = Console()
 error_console = Console(stderr=True)
 
 # Legacy Windows consoles (cp1252 and friends) cannot encode block glyphs; use ASCII there.
-_UNICODE = "utf" in (console.encoding or "").lower()
+UNICODE = "utf" in (console.encoding or "").lower()
+_UNICODE = UNICODE
 FILLED = "█" if _UNICODE else "#"
 EMPTY = "░" if _UNICODE else "-"
 DOT = " · " if _UNICODE else " | "

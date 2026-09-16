@@ -6,6 +6,7 @@ one-shot CLI, so ``show cpu`` in here and ``mabat show cpu`` outside are one cod
 
 from __future__ import annotations
 
+import platform as _platform
 import shlex
 
 import typer
@@ -13,16 +14,39 @@ from rich.table import Table
 from rich.text import Text
 
 import mabat
-from mabat.cli.render.common import console, error_console
+from mabat._shared.platform import PLATFORM_NAME
+from mabat.cli.render.common import DOT, UNICODE, console, error_console
 
 PROMPT = "[bold cyan]mabat>[/] "
 EXIT_WORDS = frozenset({"quit", "exit", "q"})
 HELP_WORDS = frozenset({"help", "?"})
+CLEAR_WORDS = frozenset({"clear", "cls"})
 NESTED_WORDS = frozenset({"cli", "shell"})
+TAGLINE = "observe your machine"
+
+# Block-art wordmark for UTF-8 terminals; figlet-style ASCII for legacy code pages.
+LOGO_UNICODE = """\
+███╗   ███╗ █████╗ ██████╗  █████╗ ████████╗
+████╗ ████║██╔══██╗██╔══██╗██╔══██╗╚══██╔══╝
+██╔████╔██║███████║██████╔╝███████║   ██║
+██║╚██╔╝██║██╔══██║██╔══██╗██╔══██║   ██║
+██║ ╚═╝ ██║██║  ██║██████╔╝██║  ██║   ██║
+╚═╝     ╚═╝╚═╝  ╚═╝╚═════╝ ╚═╝  ╚═╝   ╚═╝"""
+
+LOGO_ASCII = r"""
+                _           _
+ _ __ ___   __ _| |__   __ _| |_
+| '_ ` _ \ / _` | '_ \ / _` | __|
+| | | | | | (_| | |_) | (_| | |_
+|_| |_| |_|\__,_|_.__/ \__,_|\__|""".lstrip("\n")
+
+
+def logo() -> Text:
+    return Text(LOGO_UNICODE if UNICODE else LOGO_ASCII, style="bold cyan")
 
 
 def _commands(app: typer.Typer) -> list[tuple[str, str]]:
-    """(name, one-line help) for every visible command, from the click group itself."""
+    """(name, one-line help) for every visible command, from the command group itself."""
     group = typer.main.get_command(app)
     commands: dict[str, object] = getattr(group, "commands", {})
     rows = []
@@ -35,6 +59,18 @@ def _commands(app: typer.Typer) -> list[tuple[str, str]]:
     return rows
 
 
+def brand() -> None:
+    """Logo, tagline and where we are; printed on entry and by ``clear``."""
+    console.print(logo())
+    console.print(
+        Text.assemble(
+            (TAGLINE, "italic"),
+            (f"{DOT}v{mabat.__version__}{DOT}{_platform.node()} ({PLATFORM_NAME})", "dim"),
+        )
+    )
+    console.print()
+
+
 def banner(app: typer.Typer) -> None:
     table = Table.grid(padding=(0, 2))
     table.add_column(style="bold cyan", no_wrap=True)
@@ -42,8 +78,8 @@ def banner(app: typer.Typer) -> None:
     for name, help_text in _commands(app):
         table.add_row(name, Text(help_text))
     table.add_row("help", "Show this list.")
+    table.add_row("clear", "Clear the screen.")
     table.add_row("quit", "Leave interactive mode (also: exit, q, Ctrl+D).")
-    console.print(Text(f"mabat {mabat.__version__} interactive", style="bold"))
     console.print(table)
     console.print(
         Text.assemble(
@@ -86,6 +122,7 @@ def run_line(app: typer.Typer, line: str) -> int:
 
 
 def repl(app: typer.Typer) -> None:
+    brand()
     banner(app)
     while True:
         try:
@@ -102,6 +139,10 @@ def repl(app: typer.Typer) -> None:
             break
         if word in HELP_WORDS:
             banner(app)
+            continue
+        if word in CLEAR_WORDS:
+            console.clear()
+            brand()
             continue
         if word in NESTED_WORDS:
             console.print(Text("already in interactive mode", style="dim"))

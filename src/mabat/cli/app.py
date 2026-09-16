@@ -8,22 +8,26 @@ from datetime import datetime
 from typing import Annotated, Any
 
 import typer
-from rich.console import Group, RenderableType
+from rich.console import Group
 from rich.live import Live
 from rich.text import Text
 
 import mabat
 from mabat._shared.serialize import to_json
+from mabat.cli.bench import render_bench, run_bench
 from mabat.cli.render import console, error_console, render_health, render_section
-from mabat.cli.render.snapshot import render_snapshot
-
-SNAPSHOT = "snapshot"
+from mabat.cli.render.common import DOT
+from mabat.cli.render.settings import render_settings
+from mabat.cli.stats import SessionStats, headline
+from mabat.cli.targets import SNAPSHOT, Target, collector_options, targets
 
 app = typer.Typer(
     help="Observe your machine: CPU, GPU, memory, storage, network and OS.",
     no_args_is_help=True,
-    add_completion=False,
+    add_completion=True,
 )
+
+# --- shared flags ------------------------------------------------------------------------
 
 JsonFlag = Annotated[bool, typer.Option("--json", help="Emit JSON instead of a table.")]
 OnlyOpt = Annotated[
@@ -34,9 +38,45 @@ SkipOpt = Annotated[
     list[str] | None,
     typer.Option("--skip", help="Leave these sections out (repeat or comma-separate)."),
 ]
-ConnectionsFlag = Annotated[
-    bool, typer.Option("--connections", help="Include the socket table in the network section.")
+SampleOpt = Annotated[
+    float | None,
+    typer.Option("--sample", min=0.0, help="Sample window in seconds for cpu/system (0 = delta)."),
 ]
+TopOpt = Annotated[
+    int | None,
+    typer.Option("--top", min=0, help="Processes to rank in system (0 = count only, fast)."),
+]
+AllPartitionsFlag = Annotated[
+    bool, typer.Option("--all-partitions", help="storage: include pseudo/virtual filesystems.")
+]
+NoSmartFlag = Annotated[
+    bool, typer.Option("--no-smart", help="storage: skip the smartctl round-trip.")
+]
+ConnectionsFlag = Annotated[
+    bool, typer.Option("--connections", help="network: include the socket table.")
+]
+AllFlag = Annotated[bool, typer.Option("--all", help="network: show hidden interfaces too.")]
+
+
+def _split(values: list[str] | None) -> list[str] | None:
+    if values is None:
+        return None
+    return [part.strip() for value in values for part in value.split(",") if part.strip()]
+
+
+@app.callback()
+def _global(
+    no_color: Annotated[bool, typer.Option("--no-color", help="Plain output, no styling.")] = False,
+    width: Annotated[
+        int | None, typer.Option("--width", min=40, help="Render width in columns.")
+    ] = None,
+) -> None:
+    """Observe your machine: CPU, GPU, memory, storage, network and OS."""
+    for target in (console, error_console):
+        if no_color:
+            target.no_color = True
+        if width is not None:
+            target.width = width
 
 
 @app.command()
@@ -57,15 +97,21 @@ def health(json_: JsonFlag = False) -> None:
         raise typer.Exit(code=1)
 
 
-# --- targets: a section name or "snapshot" ------------------------------------------------
+@app.command()
+def config(json_: JsonFlag = False) -> None:
+    """Print the effective settings and where they came from."""
+    resolved = mabat.resolve_settings()
+    if json_:
+        console.print_json(to_json(resolved))
+    else:
+        console.print(render_settings(resolved))
 
 
-def _targets() -> tuple[str, ...]:
-    return (*mabat.section_names(), SNAPSHOT)
+# --- show / snapshot / watch ------------------------------------------------------------------
 
 
 def _complete_target(incomplete: str) -> list[str]:
-    return [name for name in _targets() if name.startswith(incomplete)]
+    return [name for name in targets() if name.startswith(incomplete)]
 
 
 TargetArg = Annotated[
@@ -75,56 +121,6 @@ TargetArg = Annotated[
         autocompletion=_complete_target,
     ),
 ]
-
-
-def _split(values: list[str] | None) -> list[str] | None:
-    if values is None:
-        return None
-    return [part.strip() for value in values for part in value.split(",") if part.strip()]
-
-
-class Target:
-    """What to collect and how to draw it; the same object serves show, watch and snapshot."""
-
-    def __init__(
-        self,
-        name: str,
-        *,
-        only: list[str] | None = None,
-        skip: list[str] | None = None,
-        connections: bool = False,
-    ) -> None:
-        self.name = name
-        if name == SNAPSHOT:
-            options = {"connections": True} if connections else {}
-            self._collect: Callable[[], Any] = lambda: mabat.snapshot(only, skip, **options)
-            self._render: Callable[[Any], RenderableType] = render_snapshot
-        else:
-            collectors = mabat.collectors()
-            collect = collectors.get(name)
-            if collect is None:
-                error_console.print(
-                    f"[red]unknown section {name!r}[/red] - choose from: {', '.join(_targets())}"
-                )
-                raise typer.Exit(code=2)
-            self._collect = collect
-            self._render = render_section
-
-    def collect(self) -> Any:
-        try:
-            return self._collect()
-        except ValueError as exc:  # unknown --only/--skip names
-            error_console.print(f"[red]{exc}[/red]")
-            raise typer.Exit(code=2) from None
-
-    def render(self, result: Any) -> RenderableType:
-        return self._render(result)
-
-    @staticmethod
-    def available(result: Any) -> bool:
-        if isinstance(result, mabat.Snapshot):
-            return any(s.available for s in mabat.sections_of(result).values())
-        return bool(result.available)
 
 
 def _emit(target: Target, result: Any, json_: bool) -> None:
@@ -137,9 +133,25 @@ def _emit(target: Target, result: Any, json_: bool) -> None:
 
 
 @app.command()
-def show(section: TargetArg, json_: JsonFlag = False) -> None:
+def show(
+    section: TargetArg,
+    json_: JsonFlag = False,
+    sample: SampleOpt = None,
+    top: TopOpt = None,
+    all_partitions: AllPartitionsFlag = False,
+    no_smart: NoSmartFlag = False,
+    connections: ConnectionsFlag = False,
+    all_: AllFlag = False,
+) -> None:
     """Read one section once (e.g. `mabat show cpu`). Exit status 1 if nothing could be read."""
-    target = Target(section)
+    options = collector_options(
+        sample=sample,
+        top=top,
+        all_partitions=all_partitions,
+        no_smart=no_smart,
+        connections=connections,
+    )
+    target = Target(section, options=options, show_hidden=all_)
     _emit(target, target.collect(), json_)
 
 
@@ -148,10 +160,21 @@ def snapshot(
     json_: JsonFlag = False,
     only: OnlyOpt = None,
     skip: SkipOpt = None,
+    sample: SampleOpt = None,
+    top: TopOpt = None,
+    all_partitions: AllPartitionsFlag = False,
+    no_smart: NoSmartFlag = False,
     connections: ConnectionsFlag = False,
 ) -> None:
     """Every section at once: a one-screen overview, or one JSON document with --json."""
-    target = Target(SNAPSHOT, only=_split(only), skip=_split(skip), connections=connections)
+    options = collector_options(
+        sample=sample,
+        top=top,
+        all_partitions=all_partitions,
+        no_smart=no_smart,
+        connections=connections,
+    )
+    target = Target(SNAPSHOT, options=options, only=_split(only), skip=_split(skip))
     _emit(target, target.collect(), json_)
 
 
@@ -177,7 +200,7 @@ def _ticks(collect: Callable[[], Any], interval: float, count: int) -> Iterator[
         time.sleep(max(0.0, interval - (time.monotonic() - started)))
 
 
-def _frame(target: Target, result: Any, interval: float) -> Group:
+def _frame(target: Target, result: Any, interval: float, stats: SessionStats) -> Group:
     stamp = result.collected_at.astimezone().strftime("%H:%M:%S")
     header = Text.assemble(
         ("mabat watch ", "bold"),
@@ -185,7 +208,10 @@ def _frame(target: Target, result: Any, interval: float) -> Group:
         (f"  every {interval:g} s  {stamp}  ", "dim"),
         ("Ctrl+C to stop", "dim italic"),
     )
-    return Group(header, Text(""), target.render(result))
+    summary = stats.summary(DOT)
+    session = Text(f"session {summary}", style="dim") if summary else None
+    parts = [header, session, Text(""), target.render(result)]
+    return Group(*(part for part in parts if part is not None))
 
 
 @app.command()
@@ -196,14 +222,28 @@ def watch(
     json_: JsonFlag = False,
     only: OnlyOpt = None,
     skip: SkipOpt = None,
+    sample: SampleOpt = None,
+    top: TopOpt = None,
+    all_partitions: AllPartitionsFlag = False,
+    no_smart: NoSmartFlag = False,
     connections: ConnectionsFlag = False,
+    all_: AllFlag = False,
 ) -> None:
     """Refresh a section - or the whole snapshot - live (e.g. `mabat watch cpu`).
 
     With --json, prints one JSON document per line (NDJSON) instead - pipe it anywhere.
-    --only/--skip/--connections apply when watching 'snapshot'.
+    --only/--skip apply when watching 'snapshot'.
     """
-    target = Target(section, only=_split(only), skip=_split(skip), connections=connections)
+    options = collector_options(
+        sample=sample,
+        top=top,
+        all_partitions=all_partitions,
+        no_smart=no_smart,
+        connections=connections,
+    )
+    target = Target(
+        section, options=options, only=_split(only), skip=_split(skip), show_hidden=all_
+    )
     ticks = _ticks(target.collect, interval, count)
     try:
         if json_:
@@ -211,17 +251,55 @@ def watch(
                 console.file.write(to_json(reading) + "\n")
                 console.file.flush()
             return
+        stats = SessionStats()
         with Live(console=console, refresh_per_second=8, transient=False) as live:
             for reading in ticks:
-                live.update(_frame(target, reading, interval))
+                stats.add(headline(reading))
+                live.update(_frame(target, reading, interval, stats))
     except KeyboardInterrupt:
         console.print(Text(f"stopped at {datetime.now().strftime('%H:%M:%S')}", style="dim"))
 
 
 @app.command()
-def connections(json_: JsonFlag = False) -> None:
+def bench(json_: JsonFlag = False, only: OnlyOpt = None) -> None:
+    """Time every section cold and warm against a latency budget. Exit 1 if one is over."""
+    report = run_bench(_split(only))
+    if json_:
+        console.print_json(to_json(report))
+    else:
+        console.print(render_bench(report))
+    if not report.ok:
+        raise typer.Exit(code=1)
+
+
+SOCKET_KINDS = (
+    "inet",
+    "inet4",
+    "inet6",
+    "tcp",
+    "tcp4",
+    "tcp6",
+    "udp",
+    "udp4",
+    "udp6",
+    "unix",
+    "all",
+)
+KindOpt = Annotated[
+    str,
+    typer.Option("--kind", help="Socket filter: " + ", ".join(SOCKET_KINDS) + "."),
+]
+
+
+@app.command()
+def connections(json_: JsonFlag = False, kind: KindOpt = "inet") -> None:
     """List open sockets, netstat style, with owning process names."""
-    result = mabat.connections()
+    if kind not in SOCKET_KINDS:
+        error_console.print(
+            f"[red]unknown --kind {kind!r}[/red] - choose from: " + ", ".join(SOCKET_KINDS)
+        )
+        raise typer.Exit(code=2)
+    result = mabat.connections(kind=kind)
     if json_:
         console.print_json(to_json(result))
     else:
