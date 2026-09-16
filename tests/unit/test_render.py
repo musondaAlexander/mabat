@@ -236,3 +236,47 @@ def test_render_sensors_groups_readings() -> None:
     assert "Temperatures" in text and "62 C" in text and "high 70, critical 85" in text
     assert "Fans" in text and "1200 rpm" in text
     assert ("Power" in text and "12.2 W" in text) or "12.3 W" in text
+
+
+def test_render_network_hides_flagged_interfaces_and_shows_rates() -> None:
+    from mabat.cli.render.network import fmt_rate, render_network
+    from mabat.sections.network import Address, Counters, Interface, NetworkReport, Rates
+
+    counters = Counters(1000, 2000, 1, 2, 0, 0, 0, 0)
+    eth = Interface(
+        "eth0",
+        True,
+        1000,
+        1500,
+        "full",
+        False,
+        (Address("ipv4", "192.168.1.10", "255.255.255.0", None),),
+        counters,
+        Rates(1536.0, 1024.0 * 1024, 1.0),
+    )
+    lo = Interface("lo", True, None, None, None, True, (), counters, None)
+    report = NetworkReport("box", "192.168.1.10", (eth, lo), counters, None, None)
+    section: Section[NetworkReport] = Section(
+        name="network", collected_at=datetime(2026, 1, 1, tzinfo=UTC), data=report
+    )
+    text = _render_to_text(render_network(section))
+    assert "eth0" in text and "192.168.1.10" in text
+    assert "1.5 KiB/s" in text and "1.0 MiB/s" in text
+    assert "1 hidden: lo" in text
+    assert fmt_rate(None) == "-"
+
+
+def test_render_connections_caps_rows() -> None:
+    from mabat.cli.render.network import render_connections
+    from mabat.sections.network import Connection, ConnectionsReport
+
+    rows = tuple(
+        Connection("ipv4", "tcp", "10.0.0.2", 40000 + i, "1.1.1.1", 443, "ESTABLISHED", 1, "app")
+        for i in range(45)
+    )
+    report = ConnectionsReport(rows, {"ESTABLISHED": 45}, 0, 45)
+    section: Section[ConnectionsReport] = Section(
+        name="connections", collected_at=datetime(2026, 1, 1, tzinfo=UTC), data=report
+    )
+    text = _render_to_text(render_connections(section))
+    assert "45 sockets" in text and "+5 more" in text

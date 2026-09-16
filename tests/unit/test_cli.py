@@ -203,3 +203,19 @@ def test_show_gpu_and_sensors_do_not_crash() -> None:
         result = runner.invoke(app, ["show", name])
         assert result.exit_code in (0, 1), result.output  # 1 = honestly unavailable here
         assert "Traceback" not in result.output
+
+
+def test_show_network_and_connections_command() -> None:
+    result = runner.invoke(app, ["show", "network"])
+    assert result.exit_code == 0, result.output
+    assert "Interfaces" in result.output and "outbound ip" in result.output
+
+    result = runner.invoke(app, ["connections"])
+    assert result.exit_code in (0, 1), result.output
+    assert "Traceback" not in result.output
+    if result.exit_code == 0:
+        assert "sockets" in result.output
+
+    result = runner.invoke(app, ["connections", "--json"])
+    payload = json.loads(result.output)
+    assert payload["name"] == "connections"

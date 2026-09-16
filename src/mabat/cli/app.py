@@ -138,6 +138,18 @@ def watch(
         console.print(Text(f"stopped at {datetime.now().strftime('%H:%M:%S')}", style="dim"))
 
 
+@app.command()
+def connections(json_: JsonFlag = False) -> None:
+    """List open sockets, netstat style, with owning process names."""
+    result = mabat.connections()
+    if json_:
+        console.print_json(to_json(result))
+    else:
+        console.print(render_section(result))
+    if not result.available:
+        raise typer.Exit(code=1)
+
+
 @app.command("cli")
 def interactive() -> None:
     """Enter interactive mode: type commands like `show cpu` until `quit`."""

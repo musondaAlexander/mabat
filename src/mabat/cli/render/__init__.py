@@ -17,6 +17,7 @@ from mabat.cli.render.cpu import render_cpu
 from mabat.cli.render.gpu import render_gpu
 from mabat.cli.render.health import render_health
 from mabat.cli.render.memory import render_memory
+from mabat.cli.render.network import render_connections, render_network
 from mabat.cli.render.sensors import render_sensors
 from mabat.cli.render.storage import render_storage
 from mabat.cli.render.system import render_system
@@ -28,6 +29,8 @@ RENDERERS: dict[str, Callable[[Section[Any]], RenderableType]] = {
     "storage": render_storage,
     "gpu": render_gpu,
     "sensors": render_sensors,
+    "network": render_network,
+    "connections": render_connections,
 }
 
 
@@ -44,10 +47,12 @@ __all__ = [
     "console",
     "error_console",
     "problems_footer",
+    "render_connections",
     "render_cpu",
     "render_gpu",
     "render_health",
     "render_memory",
+    "render_network",
     "render_section",
     "render_sensors",
     "render_storage",
