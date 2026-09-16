@@ -24,6 +24,13 @@ without being pulled into a sprint plan first.
 - **FastAPI and Streamlit front-ends** — documented as integrations in the hardening sprint;
   shipping them as packages (`mabat-api`, `mabat-ui`) is a later project.
 
+- **Faster guard suite** — every `snapshot()` in `tests/guards` runs the full process scan
+  (~2.5 s on a slow host). A shared session-scoped snapshot fixture, or per-section latency
+  budgets, belongs in the hardening sprint.
+- **Windows disk I/O time units** — psutil's `read_time`/`write_time` on Windows look
+  implausibly small (≈1 s for 45 GiB read); verify the unit and, if needed, document or
+  drop the columns on Windows.
+
 ## Tooling
 
 - `pre-commit` hooks mirroring `scripts/check.py`, if commits without running the gates

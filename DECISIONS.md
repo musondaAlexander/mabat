@@ -140,3 +140,42 @@ renderers to *return* a `RenderableType` instead of printing, so the same view f
 document per line, so the live path and the pipe path are the same collector loop.
 Refresh timing is start-to-start: collection time (including a section's sample window)
 is absorbed into the interval rather than added to it.
+
+## 2026-09-16 — Process sampling is tiered; expensive attributes for the top-N only
+
+On this Windows host each per-process psutil call costs ~5 ms (441 processes: `status`
+6 s, `num_threads` 6.5 s, `memory_info` 2.4 s, `cpu_percent` 2.3 s per pass); WMI's
+per-process performance class was slower still (11.7 s). Decided: one `oneshot` pass reads
+CPU delta + RSS for every process, ranks them, and only the top-N pay for username,
+status, threads and start time. `sample_seconds=0` skips the priming pass and relies on
+psutil's `process_iter` cache for the inter-call delta. Result here: 18 s → 5.9 s
+sampled, 2.5 s in delta mode; on a typical host well under a second. Rejected:
+`by_status` counts (needs `status` for every process) and WMI as a Windows fast path.
+
+## 2026-09-16 — Per-process CPU is normalised to the whole machine
+
+`ProcessInfo.cpu_percent` divides psutil's per-core figure by the logical core count, so
+100 % means the whole machine, matching Task Manager and summing sensibly with the CPU
+section's overall figure. Rejected: `top`-style per-core percentages (can exceed 100).
+
+## 2026-09-16 — Hidden pseudo-processes are settings data
+
+"System Idle Process" would top every ranking on Windows. Its exclusion is the
+`[processes] hidden_names` list in `defaults.toml`, not a string in source; it stays in
+the total count.
+
+## 2026-09-16 — SMART preconditions are reported one at a time
+
+`read_smart` distinguishes: smartctl not on PATH (`missing_dependency`, with the
+smartmontools link), pySMART not installed (`missing_dependency`), no devices while not
+elevated (`permission_denied`) and no devices while elevated (`not_present`). pySMART's
+own WARNING logging is silenced so problems remain the single channel.
+
+## 2026-09-16 — Sprint 2 retrospective
+
+Delivered: `sections/system`, `sections/storage`, renderers, `mabat show|watch
+system|storage`. Deviations: none in scope; the process sampler was redesigned mid-task
+after measuring the per-handle cost. Learned: measure before designing collectors that
+touch every process or device; this host is a good worst case. Debt for hardening (S6):
+the test suite now takes ~40 s because every `snapshot()` in the guards pays the process
+scan - give the guards a cheaper snapshot fixture or a latency budget per section.

@@ -21,6 +21,8 @@ print(mabat.to_json(mabat.snapshot(), indent=2))  # everything, as JSON
 ```console
 $ mabat show cpu            # identity, caches, per-core usage, frequency, counters
 $ mabat show memory         # RAM and swap
+$ mabat show system         # OS, uptime, users, battery, busiest processes
+$ mabat show storage        # partitions, disk I/O, SMART health (needs smartmontools)
 $ mabat show cpu --json     # the exact payload the library returns
 $ mabat watch cpu           # live view, refreshed every second; Ctrl+C to stop
 $ mabat watch cpu -i 0.5    # faster refresh
@@ -67,7 +69,7 @@ override any of them with a `mabat.toml` in the working directory, a file named 
 src/mabat/
   __init__.py      public API: health(), snapshot(), to_json(), settings() ...
   _shared/         kernel: Section/Problem models, serializer, platform helpers, settings
-  sections/        one package per domain: cpu, memory (system, storage, gpu, sensors, network to come)
+  sections/        one package per domain: cpu, memory, system, storage (gpu, sensors, network to come)
   _health.py       provider availability report
   _snapshot.py     composes every section into one Snapshot
   cli/             typer app + rich renderers, one per model (the only place UI libraries are imported)
