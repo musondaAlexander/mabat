@@ -40,8 +40,6 @@ mabat = ["_shared/defaults.toml", "py.typed"]
 line-length = 100
 target-version = "py312"
 src = ["src", "tests"]
-# pre-project experiment; removed in Sprint 1 once `mabat show cpu` replaces it
-extend-exclude = ["main.py"]
 
 [tool.ruff.lint]
 select = [

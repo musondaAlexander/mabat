@@ -1,14 +1,12 @@
-"""Rich renderers for mabat models. One function per model; no data collection here."""
+"""Renderer for the health report."""
 
 from __future__ import annotations
 
-from rich.console import Console
 from rich.table import Table
+from rich.text import Text
 
 from mabat._health import Health, ProviderStatus
-
-console = Console()
-error_console = Console(stderr=True)
+from mabat.cli.render.common import console
 
 OK = "[green]yes[/green]"
 NO = "[red]no[/red]"
@@ -35,7 +33,7 @@ def render_health(report: Health) -> None:
             _availability(provider),
             "yes" if provider.required else "",
             provider.powers,
-            provider.detail,
+            Text(provider.detail),
         )
 
     console.print(table)

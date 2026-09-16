@@ -8,7 +8,7 @@ import typer
 
 import mabat
 from mabat._shared.serialize import to_json
-from mabat.cli.render import console, render_health
+from mabat.cli.render import console, error_console, render_health, render_section
 
 app = typer.Typer(
     help="Observe your machine: CPU, GPU, memory, storage, network and OS.",
@@ -34,4 +34,36 @@ def health(json_: JsonFlag = False) -> None:
     else:
         render_health(report)
     if not report.ok:
+        raise typer.Exit(code=1)
+
+
+def _complete_section(incomplete: str) -> list[str]:
+    return [name for name in mabat.section_names() if name.startswith(incomplete)]
+
+
+SectionArg = Annotated[
+    str,
+    typer.Argument(
+        help="Which section to read: " + ", ".join(mabat.section_names()) + ".",
+        autocompletion=_complete_section,
+    ),
+]
+
+
+@app.command()
+def show(section: SectionArg, json_: JsonFlag = False) -> None:
+    """Read one section (e.g. `mabat show cpu`). Exit status 1 if nothing could be read."""
+    collectors = mabat.collectors()
+    collect = collectors.get(section)
+    if collect is None:
+        error_console.print(
+            f"[red]unknown section {section!r}[/red] - choose from: {', '.join(collectors)}"
+        )
+        raise typer.Exit(code=2)
+    result = collect()
+    if json_:
+        console.print_json(to_json(result))
+    else:
+        render_section(result)
+    if not result.available:
         raise typer.Exit(code=1)

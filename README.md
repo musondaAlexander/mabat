@@ -11,13 +11,18 @@ library (a guard test enforces it).
 ```python
 import mabat
 
-report = mabat.health()  # which data sources work on this machine
-print(mabat.to_json(report, indent=2))
+cpu = mabat.cpu()  # Section[CpuReport]: identity + a 0.5 s usage sample
+cpu.data.identity.brand  # 'AMD Ryzen 5 5600H with Radeon Graphics'
+cpu.data.usage.percent  # 13.2
+mabat.memory().data.virtual.percent  # 60.1
+print(mabat.to_json(mabat.snapshot(), indent=2))  # everything, as JSON
 ```
 
 ```console
-$ mabat health          # table; exit status 1 if a core provider is missing
-$ mabat health --json   # same data as JSON
+$ mabat show cpu            # identity, caches, per-core usage, frequency, counters
+$ mabat show memory         # RAM and swap
+$ mabat show cpu --json     # the exact payload the library returns
+$ mabat health              # which data sources work here; exit 1 if a core one is missing
 ```
 
 ## Install
@@ -58,10 +63,10 @@ override any of them with a `mabat.toml` in the working directory, a file named 
 src/mabat/
   __init__.py      public API: health(), snapshot(), to_json(), settings() ...
   _shared/         kernel: Section/Problem models, serializer, platform helpers, settings
-  sections/        one package per domain (cpu, memory, system, storage, gpu, sensors, network)
+  sections/        one package per domain: cpu, memory (system, storage, gpu, sensors, network to come)
   _health.py       provider availability report
   _snapshot.py     composes every section into one Snapshot
-  cli/             typer app + rich renderers (the only place UI libraries are imported)
+  cli/             typer app + rich renderers, one per model (the only place UI libraries are imported)
 tests/
   guards/          release-blocking guard tests (user-owned)
   unit/

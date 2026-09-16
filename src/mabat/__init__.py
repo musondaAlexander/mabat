@@ -13,7 +13,7 @@ from mabat._health import Health, ProviderStatus, health, version
 from mabat._shared.config import Settings, load_settings, settings
 from mabat._shared.models import Problem, ProblemKind, Section
 from mabat._shared.serialize import flatten, to_dict, to_json
-from mabat._snapshot import Snapshot, section_names, sections_of, snapshot
+from mabat._snapshot import Snapshot, collectors, section_names, sections_of, snapshot
 from mabat.sections.cpu import CpuReport, cpu
 from mabat.sections.memory import MemoryReport, memory
 
@@ -30,6 +30,7 @@ __all__ = [
     "Settings",
     "Snapshot",
     "__version__",
+    "collectors",
     "cpu",
     "flatten",
     "health",
