@@ -280,3 +280,37 @@ def test_render_connections_caps_rows() -> None:
     )
     text = _render_to_text(render_connections(section))
     assert "45 sockets" in text and "+5 more" in text
+
+
+def test_render_snapshot_status_and_summaries() -> None:
+    from mabat._shared.models import Problem, ProblemKind
+    from mabat._snapshot import Snapshot
+    from mabat.cli.render.snapshot import render_snapshot
+    from mabat.sections.memory import MemoryReport, SwapMemory, VirtualMemory
+
+    when = datetime(2026, 1, 1, tzinfo=UTC)
+    memory = MemoryReport(
+        VirtualMemory(4 * 2**30, 2**30, 3 * 2**30, 2**30, 75.0, {}),
+        SwapMemory(2**30, 0, 2**30, 0.0, 0, 0),
+    )
+    skipped = Problem("x", ProblemKind.SKIPPED, "not collected: skipped by request")
+    missing = Problem("nvml", ProblemKind.MISSING_DEPENDENCY, "pip install nvidia-ml-py. More.")
+    partial = Problem("cpuinfo.cache", ProblemKind.NOT_PRESENT, "l1 unknown")
+    snap = Snapshot(
+        collected_at=when,
+        hostname="box",
+        platform="linux",
+        cpu=Section("cpu", when, None, (partial,)),
+        memory=Section("memory", when, memory),
+        system=Section("system", when, None, (skipped,)),
+        storage=Section("storage", when, None, (skipped,)),
+        gpu=Section("gpu", when, None, (missing,)),
+        sensors=Section("sensors", when, None, (skipped,)),
+        network=Section("network", when, None, (skipped,)),
+    )
+    text = _render_to_text(render_snapshot(snap))
+    assert "box" in text and "linux" in text
+    assert "RAM 75.0 % (3.0 GiB of 4.0 GiB)" in text
+    assert "unavailable" in text and "pip install nvidia-ml-py" in text
+    assert "More." not in text  # only the first sentence of a reason
+    assert text.count("skipped") >= 4

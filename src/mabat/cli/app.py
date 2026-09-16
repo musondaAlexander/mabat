@@ -8,14 +8,16 @@ from datetime import datetime
 from typing import Annotated, Any
 
 import typer
-from rich.console import Group
+from rich.console import Group, RenderableType
 from rich.live import Live
 from rich.text import Text
 
 import mabat
-from mabat._shared.models import Section
 from mabat._shared.serialize import to_json
 from mabat.cli.render import console, error_console, render_health, render_section
+from mabat.cli.render.snapshot import render_snapshot
+
+SNAPSHOT = "snapshot"
 
 app = typer.Typer(
     help="Observe your machine: CPU, GPU, memory, storage, network and OS.",
@@ -24,6 +26,17 @@ app = typer.Typer(
 )
 
 JsonFlag = Annotated[bool, typer.Option("--json", help="Emit JSON instead of a table.")]
+OnlyOpt = Annotated[
+    list[str] | None,
+    typer.Option("--only", help="Collect only these sections (repeat or comma-separate)."),
+]
+SkipOpt = Annotated[
+    list[str] | None,
+    typer.Option("--skip", help="Leave these sections out (repeat or comma-separate)."),
+]
+ConnectionsFlag = Annotated[
+    bool, typer.Option("--connections", help="Include the socket table in the network section.")
+]
 
 
 @app.command()
@@ -44,40 +57,102 @@ def health(json_: JsonFlag = False) -> None:
         raise typer.Exit(code=1)
 
 
-def _complete_section(incomplete: str) -> list[str]:
-    return [name for name in mabat.section_names() if name.startswith(incomplete)]
+# --- targets: a section name or "snapshot" ------------------------------------------------
 
 
-SectionArg = Annotated[
+def _targets() -> tuple[str, ...]:
+    return (*mabat.section_names(), SNAPSHOT)
+
+
+def _complete_target(incomplete: str) -> list[str]:
+    return [name for name in _targets() if name.startswith(incomplete)]
+
+
+TargetArg = Annotated[
     str,
     typer.Argument(
-        help="Which section to read: " + ", ".join(mabat.section_names()) + ".",
-        autocompletion=_complete_section,
+        help="A section (" + ", ".join(mabat.section_names()) + ") or 'snapshot' for all.",
+        autocompletion=_complete_target,
     ),
 ]
 
 
-def _collector(section: str) -> Callable[[], Section[Any]]:
-    collectors = mabat.collectors()
-    collect = collectors.get(section)
-    if collect is None:
-        error_console.print(
-            f"[red]unknown section {section!r}[/red] - choose from: {', '.join(collectors)}"
-        )
-        raise typer.Exit(code=2)
-    return collect
+def _split(values: list[str] | None) -> list[str] | None:
+    if values is None:
+        return None
+    return [part.strip() for value in values for part in value.split(",") if part.strip()]
 
 
-@app.command()
-def show(section: SectionArg, json_: JsonFlag = False) -> None:
-    """Read one section once (e.g. `mabat show cpu`). Exit status 1 if nothing could be read."""
-    result = _collector(section)()
+class Target:
+    """What to collect and how to draw it; the same object serves show, watch and snapshot."""
+
+    def __init__(
+        self,
+        name: str,
+        *,
+        only: list[str] | None = None,
+        skip: list[str] | None = None,
+        connections: bool = False,
+    ) -> None:
+        self.name = name
+        if name == SNAPSHOT:
+            options = {"connections": True} if connections else {}
+            self._collect: Callable[[], Any] = lambda: mabat.snapshot(only, skip, **options)
+            self._render: Callable[[Any], RenderableType] = render_snapshot
+        else:
+            collectors = mabat.collectors()
+            collect = collectors.get(name)
+            if collect is None:
+                error_console.print(
+                    f"[red]unknown section {name!r}[/red] - choose from: {', '.join(_targets())}"
+                )
+                raise typer.Exit(code=2)
+            self._collect = collect
+            self._render = render_section
+
+    def collect(self) -> Any:
+        try:
+            return self._collect()
+        except ValueError as exc:  # unknown --only/--skip names
+            error_console.print(f"[red]{exc}[/red]")
+            raise typer.Exit(code=2) from None
+
+    def render(self, result: Any) -> RenderableType:
+        return self._render(result)
+
+    @staticmethod
+    def available(result: Any) -> bool:
+        if isinstance(result, mabat.Snapshot):
+            return any(s.available for s in mabat.sections_of(result).values())
+        return bool(result.available)
+
+
+def _emit(target: Target, result: Any, json_: bool) -> None:
     if json_:
         console.print_json(to_json(result))
     else:
-        console.print(render_section(result))
-    if not result.available:
+        console.print(target.render(result))
+    if not Target.available(result):
         raise typer.Exit(code=1)
+
+
+@app.command()
+def show(section: TargetArg, json_: JsonFlag = False) -> None:
+    """Read one section once (e.g. `mabat show cpu`). Exit status 1 if nothing could be read."""
+    target = Target(section)
+    _emit(target, target.collect(), json_)
+
+
+@app.command()
+def snapshot(
+    json_: JsonFlag = False,
+    only: OnlyOpt = None,
+    skip: SkipOpt = None,
+    connections: ConnectionsFlag = False,
+) -> None:
+    """Every section at once: a one-screen overview, or one JSON document with --json."""
+    target = Target(SNAPSHOT, only=_split(only), skip=_split(skip), connections=connections)
+    _emit(target, target.collect(), json_)
 
 
 IntervalOpt = Annotated[
@@ -90,9 +165,7 @@ CountOpt = Annotated[
 ]
 
 
-def _ticks(
-    collect: Callable[[], Section[Any]], interval: float, count: int
-) -> Iterator[Section[Any]]:
+def _ticks(collect: Callable[[], Any], interval: float, count: int) -> Iterator[Any]:
     """Yield readings at most every ``interval`` seconds (collection time is absorbed)."""
     taken = 0
     while count == 0 or taken < count:
@@ -104,27 +177,34 @@ def _ticks(
         time.sleep(max(0.0, interval - (time.monotonic() - started)))
 
 
-def _frame(section: Section[Any], interval: float) -> Group:
-    stamp = section.collected_at.astimezone().strftime("%H:%M:%S")
+def _frame(target: Target, result: Any, interval: float) -> Group:
+    stamp = result.collected_at.astimezone().strftime("%H:%M:%S")
     header = Text.assemble(
         ("mabat watch ", "bold"),
-        (section.name, "bold cyan"),
+        (target.name, "bold cyan"),
         (f"  every {interval:g} s  {stamp}  ", "dim"),
         ("Ctrl+C to stop", "dim italic"),
     )
-    return Group(header, Text(""), render_section(section))
+    return Group(header, Text(""), target.render(result))
 
 
 @app.command()
 def watch(
-    section: SectionArg, interval: IntervalOpt = 1.0, count: CountOpt = 0, json_: JsonFlag = False
+    section: TargetArg,
+    interval: IntervalOpt = 1.0,
+    count: CountOpt = 0,
+    json_: JsonFlag = False,
+    only: OnlyOpt = None,
+    skip: SkipOpt = None,
+    connections: ConnectionsFlag = False,
 ) -> None:
-    """Refresh one section live in the terminal (e.g. `mabat watch cpu`).
+    """Refresh a section - or the whole snapshot - live (e.g. `mabat watch cpu`).
 
     With --json, prints one JSON document per line (NDJSON) instead - pipe it anywhere.
+    --only/--skip/--connections apply when watching 'snapshot'.
     """
-    collect = _collector(section)
-    ticks = _ticks(collect, interval, count)
+    target = Target(section, only=_split(only), skip=_split(skip), connections=connections)
+    ticks = _ticks(target.collect, interval, count)
     try:
         if json_:
             for reading in ticks:
@@ -133,7 +213,7 @@ def watch(
             return
         with Live(console=console, refresh_per_second=8, transient=False) as live:
             for reading in ticks:
-                live.update(_frame(reading, interval))
+                live.update(_frame(target, reading, interval))
     except KeyboardInterrupt:
         console.print(Text(f"stopped at {datetime.now().strftime('%H:%M:%S')}", style="dim"))
 

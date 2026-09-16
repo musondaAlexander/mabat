@@ -132,7 +132,7 @@ def test_ticks_respects_count_and_spacing() -> None:
         stamps.append(time.monotonic())
         return object()
 
-    readings = list(_ticks(collect, interval=0.05, count=3))  # type: ignore[arg-type]
+    readings = list(_ticks(collect, interval=0.05, count=3))
     assert len(readings) == 3
     assert stamps[-1] - stamps[0] >= 0.09
 
@@ -219,3 +219,84 @@ def test_show_network_and_connections_command() -> None:
     result = runner.invoke(app, ["connections", "--json"])
     payload = json.loads(result.output)
     assert payload["name"] == "connections"
+
+
+# --- snapshot ---------------------------------------------------------------------------------
+
+
+def test_snapshot_overview_and_json() -> None:
+    result = runner.invoke(app, ["snapshot", "--only", "cpu,memory"])
+    assert result.exit_code == 0, result.output
+    assert "section" in result.output and "skipped" in result.output
+    assert "ok" in result.output or "partial" in result.output
+
+    result = runner.invoke(app, ["snapshot", "--json", "--only", "memory", "--skip", "cpu"])
+    assert result.exit_code == 0
+    payload = json.loads(result.output)
+    assert payload["memory"]["available"] is True
+    assert payload["cpu"]["problems"][0]["kind"] == "skipped"
+    assert set(mabat.section_names()) <= set(payload)
+
+
+def test_snapshot_rejects_unknown_selection() -> None:
+    result = runner.invoke(app, ["snapshot", "--only", "nope"])
+    assert result.exit_code == 2
+    assert "unknown section" in result.output
+
+
+def test_snapshot_connections_flag_embeds_sockets() -> None:
+    result = runner.invoke(app, ["snapshot", "--json", "--only", "network", "--connections"])
+    payload = json.loads(result.output)
+    network = payload["network"]
+    if network["available"]:
+        assert network["data"]["connections"] is not None
+
+
+def test_show_and_watch_accept_snapshot_target() -> None:
+    result = runner.invoke(app, ["show", "snapshot", "--json"])
+    assert result.exit_code == 0 and "hostname" in json.loads(result.output)
+
+    result = runner.invoke(app, ["watch", "snapshot", "-n", "1", "-i", "0.1", "--only", "memory"])
+    assert result.exit_code == 0, result.output
+    assert "mabat watch" in result.output and "memory" in result.output
+
+
+def test_snapshot_exit_status_when_nothing_available(monkeypatch: pytest.MonkeyPatch) -> None:
+    from datetime import UTC, datetime
+
+    from mabat import _snapshot
+    from mabat._shared.models import Section
+
+    names = mabat.section_names()
+
+    def empty(**kwargs: object) -> Section[None]:
+        return Section(name="x", collected_at=datetime(2026, 1, 1, tzinfo=UTC), data=None)
+
+    monkeypatch.setattr(_snapshot, "collectors", lambda: dict.fromkeys(names, empty))
+    result = runner.invoke(app, ["snapshot"])
+    assert result.exit_code == 1
+    assert "unavailable" in result.output
+
+
+def test_cli_banner_warns_when_core_provider_missing(monkeypatch: pytest.MonkeyPatch) -> None:
+    from mabat import _health as health_module
+
+    monkeypatch.setattr(health_module, "optional_import", lambda module: None)
+    output = _interactive("quit\n")
+    assert "core providers missing" in output and "psutil" in output
+
+
+def test_cli_snapshot_word_runs_the_snapshot_command() -> None:
+    output = _interactive("snapshot --only memory\nquit\n")
+    assert "section" in output and "memory" in output
+
+
+def test_python_dash_m_entry_point() -> None:
+    import subprocess
+    import sys
+
+    completed = subprocess.run(
+        [sys.executable, "-m", "mabat", "version"], capture_output=True, text=True, check=False
+    )
+    assert completed.returncode == 0
+    assert mabat.__version__ in completed.stdout

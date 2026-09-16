@@ -48,10 +48,14 @@ def banner(app: typer.Typer) -> None:
     console.print(
         Text.assemble(
             ("sections: ", "dim"),
-            ", ".join(mabat.section_names()),
+            ", ".join((*mabat.section_names(), "snapshot")),
             ("  -  a bare section name means 'show <section>'", "dim"),
         )
     )
+    report = mabat.health()
+    if not report.ok:
+        missing = ", ".join(p.name for p in report.providers if p.required and not p.available)
+        console.print(Text(f"! core providers missing: {missing} - run 'health'", style="yellow"))
 
 
 def run_line(app: typer.Typer, line: str) -> int:
@@ -63,7 +67,7 @@ def run_line(app: typer.Typer, line: str) -> int:
         return 2
     if not args:
         return 0
-    if args[0] in mabat.section_names():
+    if args[0] in mabat.section_names():  # 'snapshot' is a command in its own right
         args = ["show", *args]
     try:
         result = app(args, prog_name="mabat", standalone_mode=False)
