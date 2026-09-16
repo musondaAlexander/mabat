@@ -16,6 +16,7 @@ from mabat._shared.serialize import flatten, to_dict, to_json
 from mabat._snapshot import Snapshot, collectors, section_names, sections_of, snapshot
 from mabat.sections.cpu import CpuReport, cpu
 from mabat.sections.memory import MemoryReport, memory
+from mabat.sections.storage import StorageReport, storage
 from mabat.sections.system import SystemReport, system
 
 __version__ = version()
@@ -30,6 +31,7 @@ __all__ = [
     "Section",
     "Settings",
     "Snapshot",
+    "StorageReport",
     "SystemReport",
     "__version__",
     "collectors",
@@ -42,6 +44,7 @@ __all__ = [
     "sections_of",
     "settings",
     "snapshot",
+    "storage",
     "system",
     "to_dict",
     "to_json",
