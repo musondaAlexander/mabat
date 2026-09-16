@@ -17,6 +17,7 @@ from mabat._snapshot import Snapshot, collectors, section_names, sections_of, sn
 from mabat.sections.cpu import CpuReport, cpu
 from mabat.sections.gpu import GpuReport, gpu
 from mabat.sections.memory import MemoryReport, memory
+from mabat.sections.sensors import SensorsReport, sensors
 from mabat.sections.storage import StorageReport, storage
 from mabat.sections.system import SystemReport, system
 
@@ -31,6 +32,7 @@ __all__ = [
     "ProblemKind",
     "ProviderStatus",
     "Section",
+    "SensorsReport",
     "Settings",
     "Snapshot",
     "StorageReport",
@@ -45,6 +47,7 @@ __all__ = [
     "memory",
     "section_names",
     "sections_of",
+    "sensors",
     "settings",
     "snapshot",
     "storage",

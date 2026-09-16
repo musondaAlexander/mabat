@@ -28,6 +28,8 @@ class SettingsError(ValueError):
 class Thresholds:
     warn_percent: float
     critical_percent: float
+    temperature_warn_c: float
+    temperature_critical_c: float
 
 
 @dataclass(frozen=True, slots=True)
@@ -48,6 +50,8 @@ _SCHEMA: dict[tuple[str, str], tuple[type, ...]] = {
     ("processes", "hidden_names"): (list,),
     ("thresholds", "warn_percent"): (int, float),
     ("thresholds", "critical_percent"): (int, float),
+    ("thresholds", "temperature_warn_c"): (int, float),
+    ("thresholds", "temperature_critical_c"): (int, float),
     ("network", "hidden_interface_patterns"): (list,),
 }
 
@@ -83,9 +87,15 @@ def _build(raw: Mapping[str, Any]) -> Settings:
     thresholds = Thresholds(
         warn_percent=float(raw["thresholds"]["warn_percent"]),
         critical_percent=float(raw["thresholds"]["critical_percent"]),
+        temperature_warn_c=float(raw["thresholds"]["temperature_warn_c"]),
+        temperature_critical_c=float(raw["thresholds"]["temperature_critical_c"]),
     )
     if thresholds.warn_percent > thresholds.critical_percent:
         raise SettingsError("[thresholds] warn_percent must not exceed critical_percent")
+    if thresholds.temperature_warn_c > thresholds.temperature_critical_c:
+        raise SettingsError(
+            "[thresholds] temperature_warn_c must not exceed temperature_critical_c"
+        )
     top_n = int(raw["processes"]["top_n"])
     if top_n < 0:
         raise SettingsError("[processes] top_n must not be negative")

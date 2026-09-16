@@ -18,6 +18,9 @@ hidden_names = ["System Idle Process"]
 # utilisation levels (percent) the CLI colours as warning / critical
 warn_percent = 80.0
 critical_percent = 95.0
+# temperatures (Celsius) coloured as warning / critical when a sensor gives no limits of its own
+temperature_warn_c = 75.0
+temperature_critical_c = 90.0
 
 [network]
 # fnmatch patterns; matching interfaces are hidden from summaries (still shown with --all)
