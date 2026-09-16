@@ -16,10 +16,14 @@ from mabat.cli.render.common import console, error_console, problems_footer
 from mabat.cli.render.cpu import render_cpu
 from mabat.cli.render.health import render_health
 from mabat.cli.render.memory import render_memory
+from mabat.cli.render.storage import render_storage
+from mabat.cli.render.system import render_system
 
 RENDERERS: dict[str, Callable[[Section[Any]], RenderableType]] = {
     "cpu": render_cpu,
     "memory": render_memory,
+    "system": render_system,
+    "storage": render_storage,
 }
 
 
@@ -40,4 +44,6 @@ __all__ = [
     "render_health",
     "render_memory",
     "render_section",
+    "render_storage",
+    "render_system",
 ]

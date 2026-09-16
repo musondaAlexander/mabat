@@ -135,3 +135,10 @@ def test_ticks_respects_count_and_spacing() -> None:
     readings = list(_ticks(collect, interval=0.05, count=3))  # type: ignore[arg-type]
     assert len(readings) == 3
     assert stamps[-1] - stamps[0] >= 0.09
+
+
+def test_show_system_and_storage_render_tables() -> None:
+    for name, marker in (("system", "Processes"), ("storage", "Partitions")):
+        result = runner.invoke(app, ["show", name])
+        assert result.exit_code == 0, result.output
+        assert marker in result.output

@@ -81,3 +81,68 @@ def test_problems_footer_is_none_without_problems() -> None:
 def test_assemble_skips_none() -> None:
     group = common.assemble(common.heading("a"), None, common.heading("b"))
     assert len(group.renderables) == 2
+
+
+def _render_to_text(renderable: object) -> str:
+    capture = Console(record=True, width=120, force_terminal=False)
+    capture.print(renderable)
+    return capture.export_text()
+
+
+def test_render_system_handles_partial_reports() -> None:
+    from mabat.cli.render.system import render_system
+    from mabat.sections.system import Battery, OsIdentity, SystemReport
+
+    report = SystemReport(
+        os=OsIdentity("Linux", "6.8", "#1", "Linux-6.8", "x86_64", "box", "Ubuntu 24.04", "3.12"),
+        uptime=None,
+        users=(),
+        battery=Battery(15.0, 900, False),
+        processes=None,
+    )
+    section: Section[SystemReport] = Section(
+        name="system", collected_at=datetime(2026, 1, 1, tzinfo=UTC), data=report
+    )
+    text = _render_to_text(render_system(section))
+    assert "Ubuntu 24.04" in text
+    assert "no logged-in users" in text
+    assert "15 %" in text and "on battery" in text and "15m 00s left" in text
+
+
+def test_render_storage_shows_smart_and_unknown_usage() -> None:
+    from mabat.cli.render.storage import render_storage
+    from mabat.sections.storage import Partition, SmartAttribute, SmartDevice, StorageReport
+
+    report = StorageReport(
+        partitions=(Partition("G:", "G:\\", "FAT32", "rw", None, None, None, None),),
+        io=(),
+        smart=(
+            SmartDevice(
+                "nvme0",
+                "Fake [SSD]",
+                "SN",
+                "1.0",
+                "nvme",
+                10**12,
+                "FAIL",
+                70,
+                tuple(SmartAttribute(i, f"attr{i}", 100, 100, 0, "0") for i in range(8)),
+            ),
+        ),
+    )
+    section: Section[StorageReport] = Section(
+        name="storage", collected_at=datetime(2026, 1, 1, tzinfo=UTC), data=report
+    )
+    text = _render_to_text(render_storage(section))
+    assert "G:\\" in text and "FAIL" in text and "Fake [SSD]" in text
+    assert "no disk I/O counters" in text
+    assert "+2 more attributes" in text
+
+
+def test_render_unavailable_sections() -> None:
+    from mabat.cli.render.storage import render_storage
+    from mabat.cli.render.system import render_system
+
+    when = datetime(2026, 1, 1, tzinfo=UTC)
+    assert "unavailable" in _render_to_text(render_system(Section("system", when, None)))
+    assert "unavailable" in _render_to_text(render_storage(Section("storage", when, None)))
