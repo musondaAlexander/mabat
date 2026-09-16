@@ -102,11 +102,12 @@ def now() -> datetime:
     return datetime.now(UTC)
 
 
-def run_collector[T](name: str, collect: Callable[[Problems], T]) -> Section[T]:
+def run_collector[T](name: str, collect: Callable[[Problems], T | None]) -> Section[T]:
     """Run ``collect`` and wrap the outcome in a :class:`Section`, never raising.
 
-    ``collect`` receives a :class:`Problems` sink for partial failures. Any exception it
-    lets escape becomes a whole-section problem with ``data=None``.
+    ``collect`` receives a :class:`Problems` sink for partial failures and may return
+    ``None`` when nothing at all could be read (the problems it recorded say why). Any
+    exception it lets escape becomes a whole-section problem with ``data=None``.
     """
     problems = Problems()
     data: T | None
@@ -121,3 +122,16 @@ def run_collector[T](name: str, collect: Callable[[Problems], T]) -> Section[T]:
     )
     log.debug("collected %r available=%s problems=%d", name, section.available, len(problems))
     return section
+
+
+def attempt[T](problems: Problems, source: str, read: Callable[[], T]) -> T | None:
+    """Call ``read``; on failure record a problem against ``source`` and return ``None``.
+
+    The building block for partial sections: each independent reading is wrapped in its
+    own ``attempt`` so one failing backend cannot take the others down with it.
+    """
+    try:
+        return read()
+    except Exception as exc:  # broad on purpose: a failed reading is data, not an error
+        problems.capture(source, exc)
+        return None

@@ -10,6 +10,7 @@ from mabat._shared.models import (
     ProblemKind,
     Problems,
     Section,
+    attempt,
     classify_exception,
     now,
     run_collector,
@@ -96,3 +97,26 @@ def test_run_collector_lets_keyboard_interrupt_through() -> None:
 
     with pytest.raises(KeyboardInterrupt):
         run_collector("x", collect)
+
+
+def test_run_collector_accepts_none_as_nothing_readable() -> None:
+    def collect(problems: Problems) -> int | None:
+        problems.add("x", ProblemKind.NOT_PRESENT, "no such device")
+        return None
+
+    section = run_collector("x", collect)
+    assert not section.available
+    assert section.problems[0].kind is ProblemKind.NOT_PRESENT
+
+
+def test_attempt_returns_value_or_records_problem() -> None:
+    sink = Problems()
+    assert attempt(sink, "ok", lambda: 42) == 42
+    assert not sink
+
+    def boom() -> int:
+        raise NotImplementedError("mac")
+
+    assert attempt(sink, "bad", boom) is None
+    assert sink.freeze()[0].kind is ProblemKind.UNSUPPORTED_PLATFORM
+    assert sink.freeze()[0].source == "bad"
