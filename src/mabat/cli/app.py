@@ -136,3 +136,14 @@ def watch(
                 live.update(_frame(reading, interval))
     except KeyboardInterrupt:
         console.print(Text(f"stopped at {datetime.now().strftime('%H:%M:%S')}", style="dim"))
+
+
+@app.command("cli")
+def interactive() -> None:
+    """Enter interactive mode: type commands like `show cpu` until `quit`."""
+    from mabat.cli.repl import repl
+
+    repl(app)
+
+
+app.command("shell", hidden=True)(interactive)

@@ -179,3 +179,13 @@ after measuring the per-handle cost. Learned: measure before designing collector
 touch every process or device; this host is a good worst case. Debt for hardening (S6):
 the test suite now takes ~40 s because every `snapshot()` in the guards pays the process
 scan - give the guards a cheaper snapshot fixture or a latency budget per section.
+
+## 2026-09-16 — Interactive mode dispatches through the same Typer app
+
+`mabat cli` (hidden alias `shell`) is a read-eval loop that shlex-splits each line and
+calls the Typer app with `standalone_mode=False`, so there is exactly one command surface
+to test and document. Typer 0.27 vendors click privately, so the loop does not import
+click: command failures are handled by duck typing (`exc.show()`, `exc.exit_code`) and
+any other exception is printed and swallowed - nothing can kill the session. A bare
+section name is rewritten to `show <section>` as a convenience. Rejected: a separate
+`cmd.Cmd` subclass with its own verbs (a second surface that would drift from the CLI).

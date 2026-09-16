@@ -29,7 +29,11 @@ $ mabat watch cpu -i 0.5    # faster refresh
 $ mabat watch memory --json # one JSON document per line (NDJSON), forever - pipe it
 $ mabat watch cpu -n 10     # stop after 10 readings
 $ mabat health              # which data sources work here; exit 1 if a core one is missing
+$ mabat cli                 # interactive mode: type `show cpu`, `watch memory`, `help`, `quit`
 ```
+
+Inside `mabat cli` every line runs through the same commands, so `show cpu` there and
+`mabat show cpu` outside are identical. A bare section name (`memory`) means `show memory`.
 
 ## Install
 

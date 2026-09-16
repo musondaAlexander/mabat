@@ -142,3 +142,57 @@ def test_show_system_and_storage_render_tables() -> None:
         result = runner.invoke(app, ["show", name])
         assert result.exit_code == 0, result.output
         assert marker in result.output
+
+
+# --- interactive mode --------------------------------------------------------------------
+
+
+def _interactive(script: str) -> str:
+    result = runner.invoke(app, ["cli"], input=script)
+    assert result.exit_code == 0, result.output
+    return result.output
+
+
+def test_cli_runs_commands_until_quit() -> None:
+    output = _interactive("show memory\nquit\n")
+    assert "interactive" in output
+    assert "RAM" in output
+    assert output.rstrip().endswith("bye")
+
+
+def test_cli_bare_section_name_means_show() -> None:
+    assert "cores" in _interactive("cpu\nq\n")
+
+
+def test_cli_survives_unknown_commands_and_bad_quoting() -> None:
+    output = _interactive('bogus\nshow "unterminated\nshow nope\nversion\nexit\n')
+    assert "No such command" in output
+    assert "could not parse" in output
+    assert "unknown section" in output
+    assert mabat.__version__ in output  # the session kept going
+
+
+def test_cli_help_and_nested_guard() -> None:
+    output = _interactive("help\ncli\nshell\nquit\n")
+    assert output.count("Leave interactive mode") == 2  # banner at start + help
+    assert output.count("already in interactive mode") == 2
+
+
+def test_cli_end_of_input_exits_cleanly() -> None:
+    assert _interactive("version\n").rstrip().endswith("bye")
+
+
+def test_cli_shell_alias_is_hidden_but_works() -> None:
+    result = runner.invoke(app, ["shell"], input="quit\n")
+    assert result.exit_code == 0
+    assert "shell" not in runner.invoke(app, ["--help"]).output
+
+
+def test_run_line_exit_statuses() -> None:
+    from mabat.cli.repl import run_line
+
+    assert run_line(app, "") == 0
+    assert run_line(app, "version") == 0
+    assert run_line(app, "show nope") == 2
+    assert run_line(app, "bogus") == 2
+    assert run_line(app, 'show "x') == 2
