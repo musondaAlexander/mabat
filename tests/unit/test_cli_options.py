@@ -10,6 +10,7 @@ from typer.testing import CliRunner
 
 import mabat
 from mabat._shared.models import Section
+from mabat._shared.serialize import to_dict
 from mabat.cli import stats, targets
 from mabat.cli.app import app
 from mabat.sections.cpu import CpuReport, CpuUsage
@@ -136,7 +137,7 @@ def test_headline_and_session_stats() -> None:
     session = stats.SessionStats()
     assert session.summary() is None
     for value in (10.0, 30.0, 20.0):
-        session.add(stats.headline(_cpu_section(value)))
+        session.add(stats.headline(to_dict(_cpu_section(value))))  # type: ignore[arg-type]
     assert session.count == 3 and session.minimum == 10.0 and session.maximum == 30.0
     assert session.mean == 20.0
     summary = session.summary()
@@ -145,7 +146,7 @@ def test_headline_and_session_stats() -> None:
     assert session.count == 3
 
     empty: Section[CpuReport] = Section("cpu", datetime(2026, 1, 1, tzinfo=UTC), None)
-    assert stats.headline(empty) is None
+    assert stats.headline(to_dict(empty)) is None  # type: ignore[arg-type]
 
 
 def test_watch_prints_session_line() -> None:

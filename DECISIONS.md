@@ -309,3 +309,53 @@ probe-address validation. Deviations: none. The project is feature-complete for 
 scope; remaining items are in BACKLOG.md (live LibreHardwareMonitor verification,
 redaction, Radeon utilisation, cgroup awareness, history). Version left at 0.1.0 for the
 owner to bump at release.
+
+## 2026-09-16 — Sprint 7: CLI flags route through the same metadata as snapshot options
+
+`--sample`, `--top`, `--all-partitions`, `--no-smart` and `--connections` map to collector
+options in one table (`cli/targets.py::FLAGS`); which sections accept an option still comes
+from the `Snapshot` field metadata. A flag given to a section that accepts none of its
+options exits 2 and names the sections that do. `--sample` deliberately feeds both the
+CPU window and the per-process window. Rejected: per-command option subsets (drift) and
+silently ignoring misapplied flags (hides typos).
+
+## 2026-09-16 — Sprint 7: `mabat config`, `mabat bench`, session stats, branding
+
+`resolve_settings()` returns every source consulted (defaults, `./mabat.toml`,
+`$MABAT_CONFIG`, explicit) with an applied flag; `mabat config` renders it - the fastest
+route to a `SettingsError`. The benchmark moved into `cli/bench.py` (`scripts/bench.py` is
+a wrapper) so budgets ship with the package. `watch` tracks one headline number per
+section (`cli/stats.py`) and prints min/avg/max per frame. Interactive mode opens with a
+wordmark - block art on UTF-8 consoles, figlet-style ASCII elsewhere - plus version and
+host; `clear` redraws it. Shell completion is enabled; `--no-color`/`--width` are global.
+
+## 2026-09-16 — Sprint 8: redaction acts on the models, keys are data
+
+`mabat.redact()` walks frozen dataclasses (and dicts/lists) replacing string fields whose
+*name* is in `[redaction] keys` with `"[redacted]"`, so tables and JSON agree and no
+second serialisation path exists. `User.name` was renamed `User.username` so the key list
+can name identities without catching process or interface names. Rejected: hashing
+values (IPv4 space is brute-forceable) and type-specific redaction (code, not data).
+
+## 2026-09-16 — Sprint 8: `watch --log` + `history` share the headline extractor
+
+Headlines are read from JSON payloads (`to_dict` output) rather than models, so a live
+frame and a replayed log line use the same `cli/stats.py` code. `--log` appends NDJSON
+while the table stays on screen; `history` replays it with per-frame values and
+min/avg/max. Rejected: a SQLite sink (a file of JSON lines needs no schema and any tool
+can read it).
+
+## 2026-09-16 — Sprint 8: speedtest is a standalone section, never in a snapshot
+
+`mabat speedtest` / `mabat.speedtest()` wrap `speedtest-cli` behind the `speedtest` extra.
+It moves real traffic and takes ~30 s, so it is not registered on `Snapshot` and has no
+place in `watch`. Verified live: 5.2 Mbit/s down, 3.1 up, 263 ms; `public_ip` is a
+redaction key. Failures (offline, service unreachable) are one `backend_error` problem.
+
+## 2026-09-16 — Sprints 7 and 8 retrospective
+
+Delivered everything listed as "remaining in the CLI": per-section flags, `--all`,
+`--kind`, `config`, `bench`, completion, `--no-color`/`--width`, branded interactive mode
+with `clear`, watch session stats, `--redact`, `--log` + `history`, `speedtest`.
+Not done: command history / tab completion inside `mabat cli` on Windows (needs
+prompt_toolkit or pyreadline3 - left in BACKLOG.md). Suite: 269 tests, ~34 s.

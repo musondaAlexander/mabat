@@ -1,56 +1,86 @@
-"""One headline number per target, and min/avg/max of it over a watch session."""
+"""One headline number per target, and min/avg/max of it over a session.
+
+Headlines are read from the *JSON payload* (``to_dict`` output) rather than the models,
+so a live ``watch`` frame and a line replayed from a ``--log`` file go through the same
+code.
+"""
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from typing import Any
 
-from mabat._snapshot import Snapshot
-
 Headline = tuple[str, float]  # (label, value)
+Payload = Mapping[str, Any]
 
 
-def _cpu(report: Any) -> Headline | None:
-    return ("cpu %", report.usage.percent) if report.usage else None
+def _get(payload: Any, *path: str | int) -> Any:
+    for step in path:
+        if isinstance(step, int):
+            if not isinstance(payload, list) or len(payload) <= step:
+                return None
+            payload = payload[step]
+        else:
+            if not isinstance(payload, Mapping):
+                return None
+            payload = payload.get(step)
+        if payload is None:
+            return None
+    return payload
 
 
-def _memory(report: Any) -> Headline | None:
-    return ("RAM %", report.virtual.percent) if report.virtual else None
+def _number(value: Any) -> float | None:
+    return float(value) if isinstance(value, int | float) and not isinstance(value, bool) else None
 
 
-def _system(report: Any) -> Headline | None:
-    if report.processes and report.processes.top:
-        return ("top process %", report.processes.top[0].cpu_percent)
-    return None
+def _cpu(data: Payload) -> Headline | None:
+    value = _number(_get(data, "usage", "percent"))
+    return ("cpu %", value) if value is not None else None
 
 
-def _storage(report: Any) -> Headline | None:
-    used = [p.percent for p in (report.partitions or ()) if p.percent is not None]
+def _memory(data: Payload) -> Headline | None:
+    value = _number(_get(data, "virtual", "percent"))
+    return ("RAM %", value) if value is not None else None
+
+
+def _system(data: Payload) -> Headline | None:
+    value = _number(_get(data, "processes", "top", 0, "cpu_percent"))
+    return ("top process %", value) if value is not None else None
+
+
+def _storage(data: Payload) -> Headline | None:
+    used = [
+        p
+        for p in (_number(_get(part, "percent")) for part in _get(data, "partitions") or [])
+        if p is not None
+    ]
     return ("fullest volume %", max(used)) if used else None
 
 
-def _gpu(report: Any) -> Headline | None:
-    for device in report.devices:
-        t = device.telemetry
-        if t and t.utilization_percent is not None:
-            return ("gpu %", t.utilization_percent)
+def _gpu(data: Payload) -> Headline | None:
+    for device in _get(data, "devices") or []:
+        value = _number(_get(device, "telemetry", "utilization_percent"))
+        if value is not None:
+            return ("gpu %", value)
     return None
 
 
-def _sensors(report: Any) -> Headline | None:
-    if report.temperatures:
-        return ("hottest C", max(t.celsius for t in report.temperatures))
-    return None
+def _sensors(data: Payload) -> Headline | None:
+    temps = [
+        t
+        for t in (_number(_get(item, "celsius")) for item in _get(data, "temperatures") or [])
+        if t is not None
+    ]
+    return ("hottest C", max(temps)) if temps else None
 
 
-def _network(report: Any) -> Headline | None:
-    if report.total_rates:
-        return ("down KiB/s", report.total_rates.recv_bytes_per_s / 1024)
-    return None
+def _network(data: Payload) -> Headline | None:
+    value = _number(_get(data, "total_rates", "recv_bytes_per_s"))
+    return ("down KiB/s", value / 1024) if value is not None else None
 
 
-HEADLINES: dict[str, Callable[[Any], Headline | None]] = {
+HEADLINES: dict[str, Callable[[Payload], Headline | None]] = {
     "cpu": _cpu,
     "memory": _memory,
     "system": _system,
@@ -61,16 +91,13 @@ HEADLINES: dict[str, Callable[[Any], Headline | None]] = {
 }
 
 
-def headline(result: Any) -> Headline | None:
-    """The one number worth tracking for a section (or a snapshot's CPU figure)."""
-    if isinstance(result, Snapshot):
-        section: Any = result.cpu
-    else:
-        section = result
-    if section.data is None:
+def headline(payload: Payload) -> Headline | None:
+    """The one number worth tracking for a section payload (or a snapshot's CPU figure)."""
+    section: Any = payload.get("cpu") if "hostname" in payload and "cpu" in payload else payload
+    if not isinstance(section, Mapping) or section.get("data") is None:
         return None
-    pick = HEADLINES.get(section.name)
-    return pick(section.data) if pick else None
+    pick = HEADLINES.get(str(section.get("name")))
+    return pick(section["data"]) if pick else None
 
 
 @dataclass(slots=True)

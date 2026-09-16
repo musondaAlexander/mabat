@@ -68,7 +68,7 @@ def read_users(psutil: Any, problems: Problems) -> tuple[User, ...] | None:
         return None
     return tuple(
         User(
-            name=str(user.name),
+            username=str(user.name),
             terminal=user.terminal or None,
             host=user.host or None,
             started=_timestamp(user.started),

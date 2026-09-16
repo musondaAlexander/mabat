@@ -8,19 +8,20 @@ without being pulled into a sprint plan first.
 - **Packet capture (scapy)** — needs Npcap + Administrator on Windows and carries legal
   constraints on networks you don't own. Out of scope for an "observe my PC" tool; revisit
   only with an explicit use case.
-- **Bandwidth test (speedtest-cli)** — talks to an external service and takes ~30 s; does
-  not belong in a snapshot. Could be a separate opt-in command later.
+- ~~Bandwidth test (speedtest-cli)~~ — done in S8 as the opt-in `mabat speedtest`.
 - **tracemalloc / resource introspection** — profiles *your own Python code*, not the
   machine. Different tool.
-- **Redaction option** — a `--redact` / `Settings.redact` switch that masks MAC addresses,
-  serial numbers and usernames in serialised output before sharing a snapshot.
+- ~~Redaction option~~ — done in S8: `--redact` / `mabat.redact()`, keys in `[redaction]`.
+- **Interactive-mode line editing** — command history and tab completion inside `mabat cli`
+  on Windows need `prompt_toolkit` or `pyreadline3`; the console host gives basic history
+  today.
 - **GPU utilisation for non-NVIDIA adapters on Windows** — Windows performance counters
   (`GPU Engine(*)\Utilization Percentage` via `Get-Counter`) can give a load figure for the
   Radeon iGPU; heavier than WMI static info, so deferred past Sprint 3.
 - **Container / cgroup awareness** — read `/sys/fs/cgroup/{memory.max,cpu.max}` on Linux so
   numbers inside Docker reflect limits, not the host (reference doc §10).
-- **History / time series** — the `watch` command keeps only the live frame; persisting
-  readings (SQLite, CSV) is a separate module.
+- ~~History / time series~~ — done in S8 as `watch --log` + `mabat history` (NDJSON).
+  A SQLite/CSV sink and charts remain open.
 - **FastAPI and Streamlit front-ends as packages** — `examples/` ships working apps;
   publishing them as `mabat-api` / `mabat-ui` is a later project.
 

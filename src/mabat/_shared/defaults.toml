@@ -27,3 +27,12 @@ temperature_critical_c = 90.0
 hidden_interface_patterns = ["Loopback*", "lo"]
 # address the outbound-IP probe "connects" a UDP socket to; no packet is ever sent
 probe_address = "8.8.8.8"
+
+[redaction]
+# field names whose string values `--redact` / mabat.redact() replace with "[redacted]"
+# before a snapshot is shared: identity, addresses and serials
+keys = [
+  "hostname", "username", "host", "outbound_ip", "public_ip",
+  "address", "local_address", "remote_address",
+  "serial", "uuid",
+]

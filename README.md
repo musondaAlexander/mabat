@@ -39,7 +39,31 @@ $ mabat watch snapshot -i 2 # the overview as a live dashboard
 $ mabat watch memory --json # one JSON document per line (NDJSON), forever - pipe it
 $ mabat cli                 # interactive mode: type `show cpu`, `watch memory`, `help`, `quit`
 $ mabat health              # which data sources work here; exit 1 if a core one is missing
+$ mabat config              # effective settings and which files they came from
+$ mabat bench               # cold/warm latency per section against a budget
+$ mabat speedtest           # bandwidth test against speedtest.net (opt-in, ~30 s, real traffic)
 $ python -m mabat health    # the same CLI without the console script
+```
+
+Per-section flags on `show`, `watch` and `snapshot` (a flag that does not apply to the
+section you named fails with the sections it does apply to):
+
+```console
+$ mabat show cpu --sample 0                 # non-blocking delta instead of a 0.5 s window
+$ mabat show system --top 20 --sample 1     # rank more processes over a longer window
+$ mabat show system --top 0                 # count only, skip the per-process scan (fast)
+$ mabat show storage --no-smart --all-partitions
+$ mabat show network --connections --all    # embed sockets; expand hidden interfaces
+$ mabat connections --kind udp              # inet, inet4, inet6, tcp*, udp*, unix, all
+```
+
+Sharing and keeping readings:
+
+```console
+$ mabat snapshot --json --redact            # hostnames, users, addresses, serials -> "[redacted]"
+$ mabat watch cpu --log cpu.ndjson          # table on screen, one JSON line per frame in the file
+$ mabat history cpu.ndjson                  # replay: headline per frame, min/avg/max
+$ mabat --no-color --width 100 show gpu     # global output controls; --install-completion too
 ```
 
 Every command takes `--json`, and that output is byte-for-byte what the library returns.
@@ -63,6 +87,7 @@ Optional data sources and what they need:
 | Temperatures & fans on Windows | [LibreHardwareMonitor](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor) running (as Administrator for CPU sensors) | sensors section reports `missing_dependency` with this hint |
 | Temperatures & fans on Linux | nothing (psutil reads hwmon) | `not_present` inside containers/VMs |
 | Linux distribution name | `distro` | `distribution` is `null` |
+| Bandwidth test | `mabat[speedtest]` (speedtest-cli) | `mabat speedtest` reports `missing_dependency` |
 
 `mabat health` tells you exactly which of these are satisfied on the current machine.
 
@@ -132,7 +157,13 @@ temperature_critical_c = 90.0
 [network]
 hidden_interface_patterns = ["Loopback*", "lo"]   # collapsed in the CLI, kept in the data
 probe_address = "8.8.8.8"                        # outbound-IP probe; no packet is sent
+
+[redaction]
+keys = ["hostname", "username", "host", "outbound_ip", "public_ip",
+        "address", "local_address", "remote_address", "serial", "uuid"]
 ```
+
+`mabat config` prints the effective values and every file that was consulted.
 
 Unknown keys and wrong types are rejected with a `SettingsError` at load time.
 
@@ -149,8 +180,11 @@ Unknown keys and wrong types are rejected with a `SettingsError` at load time.
 - **Process command lines are never collected** (they routinely contain tokens); the
   system section reports name, user, CPU, memory, threads and start time only.
 - **What *is* reported**: hostname, usernames, IP and MAC addresses, drive serials, GPU
-  UUIDs — the things an observation tool exists to show. Masking them before sharing a
-  snapshot is a planned `--redact` option (see `BACKLOG.md`).
+  UUIDs — the things an observation tool exists to show. `--redact` (or `mabat.redact()`)
+  replaces the fields listed under `[redaction] keys` in the settings with `"[redacted]"`
+  before output, on both tables and JSON.
+- **`mabat speedtest` is the one command that sends real traffic** (tens of megabytes to a
+  speedtest.net server) and it only runs when you ask for it; it is never part of a snapshot.
 - **The outbound-IP probe sends nothing.** It `connect()`s a UDP socket to the configured
   address and reads the local end; no datagram leaves the machine.
 

@@ -24,6 +24,7 @@ _PYTHON_MODULES: tuple[tuple[str, str, str, bool], ...] = (
     ("nvidia-ml-py", "pynvml", "NVIDIA GPU telemetry", False),
     ("pySMART", "pySMART", "disk SMART health", False),
     ("distro", "distro", "Linux distribution name", False),
+    ("speedtest-cli", "speedtest", "bandwidth test (mabat speedtest)", False),
     ("typer", "typer", "command-line interface", False),
     ("rich", "rich", "command-line rendering", False),
 )

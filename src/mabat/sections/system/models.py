@@ -26,7 +26,7 @@ class Uptime:
 
 @dataclass(frozen=True, slots=True)
 class User:
-    name: str
+    username: str
     terminal: str | None
     host: str | None
     started: datetime | None

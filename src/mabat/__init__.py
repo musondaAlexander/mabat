@@ -19,6 +19,7 @@ from mabat._shared.config import (
     settings,
 )
 from mabat._shared.models import Problem, ProblemKind, Section
+from mabat._shared.redact import MASK, redact
 from mabat._shared.serialize import flatten, to_dict, to_json
 from mabat._snapshot import (
     Snapshot,
@@ -34,12 +35,14 @@ from mabat.sections.gpu import GpuReport, gpu
 from mabat.sections.memory import MemoryReport, memory
 from mabat.sections.network import ConnectionsReport, NetworkReport, connections, network
 from mabat.sections.sensors import SensorsReport, sensors
+from mabat.sections.speedtest import SpeedtestReport, speedtest
 from mabat.sections.storage import StorageReport, storage
 from mabat.sections.system import SystemReport, system
 
 __version__ = version()
 
 __all__ = [
+    "MASK",
     "ConnectionsReport",
     "CpuReport",
     "GpuReport",
@@ -55,6 +58,7 @@ __all__ = [
     "Settings",
     "SettingsSource",
     "Snapshot",
+    "SpeedtestReport",
     "StorageReport",
     "SystemReport",
     "__version__",
@@ -68,6 +72,7 @@ __all__ = [
     "memory",
     "network",
     "problems_of",
+    "redact",
     "resolve_settings",
     "section_names",
     "sections_of",
@@ -75,6 +80,7 @@ __all__ = [
     "settings",
     "snapshot",
     "snapshot_options",
+    "speedtest",
     "storage",
     "system",
     "to_dict",

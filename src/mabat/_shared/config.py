@@ -57,6 +57,7 @@ class Settings:
     thresholds: Thresholds
     hidden_interface_patterns: tuple[str, ...]
     probe_address: str
+    redaction_keys: frozenset[str]
 
 
 # (table, key) -> accepted types: the whole vocabulary a settings file may use
@@ -71,6 +72,7 @@ _SCHEMA: dict[tuple[str, str], tuple[type, ...]] = {
     ("thresholds", "temperature_critical_c"): (int, float),
     ("network", "hidden_interface_patterns"): (list,),
     ("network", "probe_address"): (str,),
+    ("redaction", "keys"): (list,),
 }
 
 
@@ -138,6 +140,7 @@ def _build(raw: Mapping[str, Any]) -> Settings:
             str(pattern) for pattern in raw["network"]["hidden_interface_patterns"]
         ),
         probe_address=probe,
+        redaction_keys=frozenset(str(key) for key in raw["redaction"]["keys"]),
     )
 
 

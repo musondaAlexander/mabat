@@ -29,7 +29,13 @@ it is used for three read-only WMI queries.
 | live view | `mabat watch cpu -i 0.5` / `mabat watch snapshot` |
 | stream JSON lines | `mabat watch network --json` |
 | sockets | `mabat connections` |
-| interactive | `mabat cli` then `show cpu`, `help`, `quit` |
+| interactive | `mabat cli` then `show cpu`, `help`, `clear`, `quit` |
+| per-section flags | `mabat show system --top 0`, `mabat show storage --no-smart`, `mabat show network --all` |
+| share safely | add `--redact` to any command |
+| keep a log | `mabat watch cpu --log cpu.ndjson`, later `mabat history cpu.ndjson` |
+| settings in effect | `mabat config` |
+| latency check | `mabat bench` |
+| bandwidth test | `mabat speedtest` (real traffic, ~30 s, needs `mabat[speedtest]`) |
 | no console script | `python -m mabat …` |
 
 Exit status: `0` success, `1` the section (or every section of a snapshot) was unavailable,
@@ -115,3 +121,5 @@ and pull request.
 | `?` glyphs or `UnicodeEncodeError` in a console | legacy code page | mabat falls back to ASCII automatically; if you see errors, run `chcp 65001` or use Windows Terminal |
 | `SettingsError: unknown setting` | typo in `mabat.toml` | compare against `defaults.toml` |
 | tests slow | real process scan in guards | the suite pins `top_n = 0`; check `tests/conftest.py` is being picked up |
+| `--top does not apply to 'cpu'` | flag given to a section that has no such option | the message lists the sections that accept it |
+| speedtest: `missing_dependency` | `speedtest-cli` not installed | `pip install "mabat[speedtest]"` |

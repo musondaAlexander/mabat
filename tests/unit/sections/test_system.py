@@ -183,7 +183,7 @@ def test_uptime_users_battery_from_fake_psutil() -> None:
     assert uptime is not None and uptime.uptime_seconds > 0
     assert uptime.boot_time.tzinfo is not None
     users = collector.read_users(fake, problems)
-    assert users is not None and users[0].name == "alex" and users[0].host is None
+    assert users is not None and users[0].username == "alex" and users[0].host is None
     battery = collector.read_battery(fake, problems)
     assert battery is not None
     assert (battery.percent, battery.seconds_left, battery.power_plugged) == (80.0, 3600, False)

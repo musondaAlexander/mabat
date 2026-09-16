@@ -5,6 +5,7 @@ from __future__ import annotations
 import time
 from collections.abc import Callable, Iterator
 from datetime import datetime
+from pathlib import Path
 from typing import Annotated, Any
 
 import typer
@@ -13,8 +14,9 @@ from rich.live import Live
 from rich.text import Text
 
 import mabat
-from mabat._shared.serialize import to_json
+from mabat._shared.serialize import to_dict, to_json
 from mabat.cli.bench import render_bench, run_bench
+from mabat.cli.history import read_history, render_history
 from mabat.cli.render import console, error_console, render_health, render_section
 from mabat.cli.render.common import DOT
 from mabat.cli.render.settings import render_settings
@@ -30,6 +32,10 @@ app = typer.Typer(
 # --- shared flags ------------------------------------------------------------------------
 
 JsonFlag = Annotated[bool, typer.Option("--json", help="Emit JSON instead of a table.")]
+RedactFlag = Annotated[
+    bool,
+    typer.Option("--redact", help="Mask hostnames, users, addresses and serials before output."),
+]
 OnlyOpt = Annotated[
     list[str] | None,
     typer.Option("--only", help="Collect only these sections (repeat or comma-separate)."),
@@ -56,6 +62,10 @@ ConnectionsFlag = Annotated[
     bool, typer.Option("--connections", help="network: include the socket table.")
 ]
 AllFlag = Annotated[bool, typer.Option("--all", help="network: show hidden interfaces too.")]
+LogOpt = Annotated[
+    Path | None,
+    typer.Option("--log", help="Append every reading to this file as NDJSON, one per line."),
+]
 
 
 def _split(values: list[str] | None) -> list[str] | None:
@@ -123,7 +133,9 @@ TargetArg = Annotated[
 ]
 
 
-def _emit(target: Target, result: Any, json_: bool) -> None:
+def _emit(target: Target, result: Any, json_: bool, redact: bool = False) -> None:
+    if redact:
+        result = mabat.redact(result)
     if json_:
         console.print_json(to_json(result))
     else:
@@ -136,6 +148,7 @@ def _emit(target: Target, result: Any, json_: bool) -> None:
 def show(
     section: TargetArg,
     json_: JsonFlag = False,
+    redact: RedactFlag = False,
     sample: SampleOpt = None,
     top: TopOpt = None,
     all_partitions: AllPartitionsFlag = False,
@@ -152,12 +165,13 @@ def show(
         connections=connections,
     )
     target = Target(section, options=options, show_hidden=all_)
-    _emit(target, target.collect(), json_)
+    _emit(target, target.collect(), json_, redact)
 
 
 @app.command()
 def snapshot(
     json_: JsonFlag = False,
+    redact: RedactFlag = False,
     only: OnlyOpt = None,
     skip: SkipOpt = None,
     sample: SampleOpt = None,
@@ -175,7 +189,7 @@ def snapshot(
         connections=connections,
     )
     target = Target(SNAPSHOT, options=options, only=_split(only), skip=_split(skip))
-    _emit(target, target.collect(), json_)
+    _emit(target, target.collect(), json_, redact)
 
 
 IntervalOpt = Annotated[
@@ -220,6 +234,8 @@ def watch(
     interval: IntervalOpt = 1.0,
     count: CountOpt = 0,
     json_: JsonFlag = False,
+    redact: RedactFlag = False,
+    log: LogOpt = None,
     only: OnlyOpt = None,
     skip: SkipOpt = None,
     sample: SampleOpt = None,
@@ -232,7 +248,8 @@ def watch(
     """Refresh a section - or the whole snapshot - live (e.g. `mabat watch cpu`).
 
     With --json, prints one JSON document per line (NDJSON) instead - pipe it anywhere.
-    --only/--skip apply when watching 'snapshot'.
+    --log appends those same lines to a file while the table stays on screen; replay it
+    with `mabat history FILE`. --only/--skip apply when watching 'snapshot'.
     """
     options = collector_options(
         sample=sample,
@@ -245,19 +262,54 @@ def watch(
         section, options=options, only=_split(only), skip=_split(skip), show_hidden=all_
     )
     ticks = _ticks(target.collect, interval, count)
+    sink = log.open("a", encoding="utf-8") if log is not None else None
+    stats = SessionStats()
+    live = Live(console=console, refresh_per_second=8, transient=False)
     try:
-        if json_:
-            for reading in ticks:
-                console.file.write(to_json(reading) + "\n")
+        if not json_:
+            live.start()
+        for reading in ticks:
+            if redact:
+                reading = mabat.redact(reading)
+            line = to_json(reading)
+            if sink is not None:
+                sink.write(line + "\n")
+                sink.flush()
+            if json_:
+                console.file.write(line + "\n")
                 console.file.flush()
-            return
-        stats = SessionStats()
-        with Live(console=console, refresh_per_second=8, transient=False) as live:
-            for reading in ticks:
-                stats.add(headline(reading))
-                live.update(_frame(target, reading, interval, stats))
+                continue
+            payload = to_dict(reading)
+            stats.add(headline(payload) if isinstance(payload, dict) else None)
+            live.update(_frame(target, reading, interval, stats))
     except KeyboardInterrupt:
+        if live.is_started:
+            live.stop()
         console.print(Text(f"stopped at {datetime.now().strftime('%H:%M:%S')}", style="dim"))
+    finally:
+        if live.is_started:
+            live.stop()
+        if sink is not None:
+            sink.close()
+
+
+@app.command()
+def history(
+    file: Annotated[
+        Path, typer.Argument(help="NDJSON written by `watch --log` or `watch --json`.")
+    ],
+    json_: JsonFlag = False,
+) -> None:
+    """Replay a log: one line per reading with its headline number, plus min/avg/max."""
+    try:
+        frames = read_history(file)
+    except (OSError, ValueError) as exc:
+        error_console.print(f"[red]{exc}[/red]")
+        raise typer.Exit(code=2) from None
+    if json_:
+        console.print_json(to_json(frames))
+    else:
+        console.print(render_history(frames))
 
 
 @app.command()
@@ -292,7 +344,9 @@ KindOpt = Annotated[
 
 
 @app.command()
-def connections(json_: JsonFlag = False, kind: KindOpt = "inet") -> None:
+def connections(
+    json_: JsonFlag = False, redact: RedactFlag = False, kind: KindOpt = "inet"
+) -> None:
     """List open sockets, netstat style, with owning process names."""
     if kind not in SOCKET_KINDS:
         error_console.print(
@@ -300,6 +354,22 @@ def connections(json_: JsonFlag = False, kind: KindOpt = "inet") -> None:
         )
         raise typer.Exit(code=2)
     result = mabat.connections(kind=kind)
+    if redact:
+        result = mabat.redact(result)
+    if json_:
+        console.print_json(to_json(result))
+    else:
+        console.print(render_section(result))
+    if not result.available:
+        raise typer.Exit(code=1)
+
+
+@app.command()
+def speedtest(json_: JsonFlag = False, redact: RedactFlag = False) -> None:
+    """Measure download/upload bandwidth and ping against speedtest.net (~30 s, real traffic)."""
+    result = mabat.speedtest()
+    if redact:
+        result = mabat.redact(result)
     if json_:
         console.print_json(to_json(result))
     else:

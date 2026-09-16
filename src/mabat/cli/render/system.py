@@ -45,7 +45,7 @@ def _users(users: tuple[User, ...]) -> RenderableType:
         since = user.started.astimezone().strftime("%Y-%m-%d %H:%M") if user.started else "-"
         where = f" from {user.host}" if user.host else ""
         terminal = f" on {user.terminal}" if user.terminal else ""
-        table.add_row(Text(user.name), Text(f"since {since}{where}{terminal}"))
+        table.add_row(Text(user.username), Text(f"since {since}{where}{terminal}"))
     return assemble(heading("Users"), table)
 
 
