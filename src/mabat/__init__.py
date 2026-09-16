@@ -13,7 +13,15 @@ from mabat._health import Health, ProviderStatus, health, version
 from mabat._shared.config import Settings, load_settings, settings
 from mabat._shared.models import Problem, ProblemKind, Section
 from mabat._shared.serialize import flatten, to_dict, to_json
-from mabat._snapshot import Snapshot, collectors, section_names, sections_of, snapshot
+from mabat._snapshot import (
+    Snapshot,
+    collectors,
+    problems_of,
+    section_names,
+    sections_of,
+    snapshot,
+    snapshot_options,
+)
 from mabat.sections.cpu import CpuReport, cpu
 from mabat.sections.gpu import GpuReport, gpu
 from mabat.sections.memory import MemoryReport, memory
@@ -50,11 +58,13 @@ __all__ = [
     "load_settings",
     "memory",
     "network",
+    "problems_of",
     "section_names",
     "sections_of",
     "sensors",
     "settings",
     "snapshot",
+    "snapshot_options",
     "storage",
     "system",
     "to_dict",

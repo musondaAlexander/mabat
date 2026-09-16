@@ -24,6 +24,7 @@ class ProblemKind(StrEnum):
     PERMISSION_DENIED = "permission_denied"
     NOT_PRESENT = "not_present"
     BACKEND_ERROR = "backend_error"
+    SKIPPED = "skipped"
 
 
 @dataclass(frozen=True, slots=True)
