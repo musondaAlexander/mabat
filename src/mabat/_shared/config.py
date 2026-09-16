@@ -34,6 +34,8 @@ class Thresholds:
 class Settings:
     cpu_sample_seconds: float
     top_processes: int
+    process_sample_seconds: float
+    hidden_process_names: frozenset[str]
     thresholds: Thresholds
     hidden_interface_patterns: tuple[str, ...]
 
@@ -42,6 +44,8 @@ class Settings:
 _SCHEMA: dict[tuple[str, str], tuple[type, ...]] = {
     ("sampling", "cpu_sample_seconds"): (int, float),
     ("processes", "top_n"): (int,),
+    ("processes", "sample_seconds"): (int, float),
+    ("processes", "hidden_names"): (list,),
     ("thresholds", "warn_percent"): (int, float),
     ("thresholds", "critical_percent"): (int, float),
     ("network", "hidden_interface_patterns"): (list,),
@@ -88,9 +92,14 @@ def _build(raw: Mapping[str, Any]) -> Settings:
     sample = float(raw["sampling"]["cpu_sample_seconds"])
     if sample < 0:
         raise SettingsError("[sampling] cpu_sample_seconds must not be negative")
+    process_sample = float(raw["processes"]["sample_seconds"])
+    if process_sample < 0:
+        raise SettingsError("[processes] sample_seconds must not be negative")
     return Settings(
         cpu_sample_seconds=sample,
         top_processes=top_n,
+        process_sample_seconds=process_sample,
+        hidden_process_names=frozenset(str(n) for n in raw["processes"]["hidden_names"]),
         thresholds=thresholds,
         hidden_interface_patterns=tuple(
             str(pattern) for pattern in raw["network"]["hidden_interface_patterns"]

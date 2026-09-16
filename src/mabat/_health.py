@@ -23,6 +23,7 @@ _PYTHON_MODULES: tuple[tuple[str, str, str, bool], ...] = (
     ("py-cpuinfo", "cpuinfo", "cpu identity", True),
     ("nvidia-ml-py", "pynvml", "NVIDIA GPU telemetry", False),
     ("pySMART", "pySMART", "disk SMART health", False),
+    ("distro", "distro", "Linux distribution name", False),
     ("typer", "typer", "command-line interface", False),
     ("rich", "rich", "command-line rendering", False),
 )

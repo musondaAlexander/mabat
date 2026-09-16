@@ -17,7 +17,9 @@ def _fresh_settings(
     and make sampling non-blocking so the suite stays fast."""
     monkeypatch.delenv(config.ENV_CONFIG_PATH, raising=False)
     cwd = tmp_path_factory.mktemp("cwd")
-    (cwd / config.LOCAL_CONFIG_NAME).write_text("[sampling]\ncpu_sample_seconds = 0.0\n")
+    (cwd / config.LOCAL_CONFIG_NAME).write_text(
+        "[sampling]\ncpu_sample_seconds = 0.0\n[processes]\nsample_seconds = 0.0\n"
+    )
     monkeypatch.chdir(cwd)
     config.settings.cache_clear()
     yield

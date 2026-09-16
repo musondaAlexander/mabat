@@ -9,6 +9,10 @@ cpu_sample_seconds = 0.5
 [processes]
 # how many processes the system section lists, ranked by CPU then memory
 top_n = 10
+# seconds per-process CPU usage is sampled over (0 = delta since the previous call)
+sample_seconds = 0.5
+# process names left out of the ranking (exact match); pseudo-processes, not real work
+hidden_names = ["System Idle Process"]
 
 [thresholds]
 # utilisation levels (percent) the CLI colours as warning / critical
