@@ -1,0 +1,26 @@
+# virtual environments
+venv/
+.venv/
+
+# python artefacts
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+
+# tool caches
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# local config overrides
+mabat.toml
+
+# editors / OS
+.vscode/
+.idea/
+Thumbs.db
+.DS_Store

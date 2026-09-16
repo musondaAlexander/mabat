@@ -1,0 +1,81 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mabat"
+version = "0.1.0"
+description = "Observe your machine - CPU, GPU, memory, storage, network and OS - as plain Python data, a CLI, or an API."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "psutil>=7",
+    "py-cpuinfo>=9",
+]
+
+[project.optional-dependencies]
+cli = ["typer>=0.12", "rich>=13"]
+gpu = ["nvidia-ml-py>=12"]
+smart = ["pySMART>=1.3"]
+all = ["mabat[cli,gpu,smart]"]
+dev = [
+    "ruff>=0.6",
+    "mypy>=1.11",
+    "pytest>=8",
+    "types-psutil",
+]
+
+[project.scripts]
+mabat = "mabat.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+mabat = ["_shared/defaults.toml", "py.typed"]
+
+# --- formatter + static analysis -------------------------------------------
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["src", "tests"]
+# pre-project experiment; removed in Sprint 1 once `mabat show cpu` replaces it
+extend-exclude = ["main.py"]
+
+[tool.ruff.lint]
+select = [
+    "E", "W",   # pycodestyle
+    "F",        # pyflakes
+    "I",        # isort
+    "UP",       # pyupgrade
+    "B",        # bugbear
+    "SIM",      # simplify
+    "N",        # pep8-naming
+    "RUF",      # ruff-specific
+    "S",        # bandit: flags subprocess/shell use so it stays confined to _shared/platform.py
+    "T20",      # no stray print() in library code
+]
+
+[tool.ruff.lint.per-file-ignores]
+"src/mabat/_shared/platform.py" = ["S603", "S607"]  # the one sanctioned subprocess site
+"src/mabat/cli/**" = ["T20"]                        # the CLI is allowed to print
+"tests/**" = ["S101", "S603", "S607", "T20"]        # asserts and helper commands in tests
+"scripts/**" = ["S603", "S607", "T20"]
+
+[tool.mypy]
+strict = true
+python_version = "3.12"
+files = ["src", "tests", "scripts"]
+warn_unreachable = true
+
+[[tool.mypy.overrides]]
+module = ["cpuinfo", "pynvml", "pySMART", "pySMART.*"]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q --strict-markers"
+markers = [
+    "guard: release-blocking guard test (owned by the user; do not weaken without sign-off)",
+]
