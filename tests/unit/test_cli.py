@@ -256,12 +256,25 @@ def test_snapshot_rejects_unknown_selection() -> None:
     assert "unknown section" in result.output
 
 
+def _sockets_or_denied(section: dict[str, object]) -> None:
+    """Sockets are embedded, or (macOS without root) declined with a permission problem."""
+    data = section["data"]
+    assert isinstance(data, dict)
+    if data["connections"] is None:
+        problems = section["problems"]
+        assert isinstance(problems, list)
+        assert any(
+            p["source"] == "psutil.net_connections" and p["kind"] == "permission_denied"
+            for p in problems
+        ), problems
+
+
 def test_snapshot_connections_flag_embeds_sockets() -> None:
     result = runner.invoke(app, ["snapshot", "--json", "--only", "network", "--connections"])
     payload = json.loads(result.output)
     network = payload["network"]
     if network["available"]:
-        assert network["data"]["connections"] is not None
+        _sockets_or_denied(network)
 
 
 def test_show_and_watch_accept_snapshot_target() -> None:

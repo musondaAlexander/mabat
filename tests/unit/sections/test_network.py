@@ -216,3 +216,20 @@ def test_network_on_this_machine_serialises() -> None:
     for interface in payload["data"]["interfaces"]:
         assert {"name", "is_up", "hidden", "addresses", "counters", "rates"} <= set(interface)
     assert "connections" in payload["data"] and payload["data"]["connections"] is None
+
+
+def test_network_with_denied_sockets_stays_available(monkeypatch: pytest.MonkeyPatch) -> None:
+    """macOS without root: net_connections is denied, the rest of the section still works."""
+
+    def denied(kind: str = "inet") -> None:
+        raise DeniedError("psutil.AccessDenied")
+
+    monkeypatch.setattr(plat, "optional_import", lambda name: _fake_psutil(net_connections=denied))
+    section = mabat.network(connections=True)
+    assert section.available and section.data is not None
+    assert section.data.connections is None
+    assert section.data.interfaces  # interfaces, counters, outbound ip are unaffected
+    assert any(
+        p.source == "psutil.net_connections" and p.kind is ProblemKind.PERMISSION_DENIED
+        for p in section.problems
+    )

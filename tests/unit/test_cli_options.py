@@ -53,7 +53,9 @@ def test_show_routes_flags_to_the_section() -> None:
     result = runner.invoke(app, ["show", "network", "--connections", "--json"])
     payload = json.loads(result.output)
     if payload["available"]:
-        assert payload["data"]["connections"] is not None
+        from tests.unit.test_cli import _sockets_or_denied
+
+        _sockets_or_denied(payload)
 
 
 def test_misapplied_flag_exits_2_and_names_the_right_sections() -> None:
