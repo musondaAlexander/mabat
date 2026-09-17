@@ -221,6 +221,7 @@ Starting is cheap with an agent; finishing is the scarce resource. These rules p
 | S6 Hardening ✅ | README with FastAPI + Streamlit wiring, latency budget (`scripts/bench.py`), subprocess security sweep, RUNBOOK.md | S5 |
 | S7 CLI completeness ✅ | per-section flags, `--all`, `--kind`, `config`, `bench`, completion, `--no-color`/`--width`, branded interactive mode, watch session stats | S6 |
 | S8 Backlog features ✅ | `--redact`, `watch --log` + `history`, `speedtest` | S7 |
+| S9 Remaining items ✅ | GPU perf counters for non-NVIDIA adapters, prompt_toolkit line editing, macOS CI, `mabat-api`/`mabat-ui` packages, Windows disk time units, pre-commit | S8 |
 
 ---
 

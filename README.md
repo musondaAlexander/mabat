@@ -54,6 +54,7 @@ $ mabat show system --top 20 --sample 1     # rank more processes over a longer 
 $ mabat show system --top 0                 # count only, skip the per-process scan (fast)
 $ mabat show storage --no-smart --all-partitions
 $ mabat show network --connections --all    # embed sockets; expand hidden interfaces
+$ mabat show gpu --counters                 # Windows: load/VRAM for non-NVIDIA adapters (~5 s)
 $ mabat connections --kind udp              # inet, inet4, inet6, tcp*, udp*, unix, all
 ```
 
@@ -83,6 +84,7 @@ Optional data sources and what they need:
 | Source | Needs | Without it |
 |---|---|---|
 | NVIDIA GPU telemetry | `mabat[gpu]` (nvidia-ml-py) + NVIDIA driver | GPU section lists adapters from WMI only (Windows) or reports `not_present` |
+| Load/VRAM for AMD or Intel adapters (Windows) | nothing to install; `--counters` or `[gpu] counters = true` (Task Manager's performance counters, ~5 s) | identity only |
 | SMART disk health | `mabat[smart]` + [smartmontools](https://www.smartmontools.org) on PATH + elevated shell | storage section reports `missing_dependency` / `permission_denied` |
 | Temperatures & fans on Windows | [LibreHardwareMonitor](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor) running (as Administrator for CPU sensors) | sensors section reports `missing_dependency` with this hint |
 | Temperatures & fans on Linux | nothing (psutil reads hwmon) | `not_present` inside containers/VMs |
@@ -114,15 +116,15 @@ a `Problem` whose `kind` (`missing_dependency`, `unsupported_platform`,
 
 ## Use it from FastAPI or Streamlit
 
-Working examples live in [`examples/`](https://github.com/musondaAlexander/mabat/blob/main/examples):
+Two companion packages live in [`packages/`](https://github.com/musondaAlexander/mabat/blob/main/packages) and install separately:
 
-- [`examples/fastapi_app.py`](https://github.com/musondaAlexander/mabat/blob/main/examples/fastapi_app.py) — `/health`, `/snapshot?only=…&skip=…`,
-  `/sections/{name}`, `/connections`, `/problems`. Run with
-  `uvicorn examples.fastapi_app:app --reload`.
-- [`examples/streamlit_app.py`](https://github.com/musondaAlexander/mabat/blob/main/examples/streamlit_app.py) — headline metrics plus one panel
-  per section, auto-refreshing. Run with `streamlit run examples/streamlit_app.py`.
+```console
+pip install mabat-api && mabat-api          # FastAPI: /health, /sections/{name}, /snapshot, /connections, /problems (docs at /docs)
+pip install mabat-ui  && mabat-ui           # Streamlit dashboard, auto-refreshing, with a redact switch
+```
 
-The pattern in both is the same three lines:
+Both are thin: they call the same collectors as the CLI and return `mabat.to_dict(...)`.
+The pattern for your own integration is three lines:
 
 ```python
 snap = mabat.snapshot(only=["cpu", "memory"])  # collect
@@ -157,6 +159,9 @@ temperature_critical_c = 90.0
 [network]
 hidden_interface_patterns = ["Loopback*", "lo"]   # collapsed in the CLI, kept in the data
 probe_address = "8.8.8.8"                        # outbound-IP probe; no packet is sent
+
+[gpu]
+counters = false                  # Windows perf counters for non-NVIDIA adapters (~5 s per call)
 
 [redaction]
 keys = ["hostname", "username", "host", "outbound_ip", "public_ip",
@@ -210,7 +215,7 @@ src/mabat/
 tests/
   guards/          release-blocking guard tests (user-owned; boundary, serialisation, degradation, privacy)
   unit/
-examples/          FastAPI and Streamlit integrations
+packages/          mabat-api (FastAPI) and mabat-ui (Streamlit), separate distributions
 scripts/           check.py (quality gates), bench.py (latency budget)
 ```
 

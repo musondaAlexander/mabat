@@ -12,29 +12,26 @@ without being pulled into a sprint plan first.
 - **tracemalloc / resource introspection** — profiles *your own Python code*, not the
   machine. Different tool.
 - ~~Redaction option~~ — done in S8: `--redact` / `mabat.redact()`, keys in `[redaction]`.
-- **Interactive-mode line editing** — command history and tab completion inside `mabat cli`
-  on Windows need `prompt_toolkit` or `pyreadline3`; the console host gives basic history
-  today.
-- **GPU utilisation for non-NVIDIA adapters on Windows** — Windows performance counters
-  (`GPU Engine(*)\Utilization Percentage` via `Get-Counter`) can give a load figure for the
-  Radeon iGPU; heavier than WMI static info, so deferred past Sprint 3.
+- ~~Interactive-mode line editing~~ — done in S9 with prompt_toolkit (history file,
+  auto-suggest, tab completion derived from the app).
+- ~~GPU utilisation for non-NVIDIA adapters on Windows~~ — done in S9: `--counters` /
+  `[gpu] counters` read the GPU Engine and Adapter Memory performance counters.
 - **Container / cgroup awareness** — read `/sys/fs/cgroup/{memory.max,cpu.max}` on Linux so
   numbers inside Docker reflect limits, not the host (reference doc §10).
 - ~~History / time series~~ — done in S8 as `watch --log` + `mabat history` (NDJSON).
   A SQLite/CSV sink and charts remain open.
-- **FastAPI and Streamlit front-ends as packages** — `examples/` ships working apps;
-  publishing them as `mabat-api` / `mabat-ui` is a later project.
+- ~~FastAPI and Streamlit front-ends as packages~~ — done in S9: `packages/mabat-api`
+  and `packages/mabat-ui` (each its own distribution; publish separately).
 
 - ~~Faster guard suite~~ — done in S6: the suite pins `[processes] top_n = 0`
   (count-only mode) and `scripts/bench.py` holds the latency budgets.
-- **Windows disk I/O time units** — psutil's `read_time`/`write_time` on Windows look
-  implausibly small (≈1 s for 45 GiB read); verify the unit and, if needed, document or
-  drop the columns on Windows.
+- ~~Windows disk I/O time units~~ — verified in S9: Windows psutil reports whole seconds
+  (100-ns ticks / 10^7), not milliseconds; the collector now applies the right unit.
 
 - **Verify the sensors parser against a live LibreHardwareMonitor** — built from the
   documented Hardware/Sensor WMI schema; confirm labels and parents once LHM is installed.
 
 ## Tooling
 
-- `pre-commit` hooks mirroring `scripts/check.py`, if commits without running the gates
-  become a problem.
+- ~~`pre-commit` hooks~~ — done in S9: ruff on commit, full gates on push
+  (`.pre-commit-config.yaml`).

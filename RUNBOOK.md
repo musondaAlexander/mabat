@@ -10,7 +10,8 @@ git clone https://github.com/musondaAlexander/mabat.git
 cd mabat
 python -m venv venv
 venv\Scripts\activate            # Windows        (Linux/macOS: source venv/bin/activate)
-pip install -e ".[all,dev]"
+pip install -e ".[all,dev]" -e packages/mabat-api -e packages/mabat-ui
+pre-commit install --hook-type pre-commit --hook-type pre-push   # ruff on commit, full gates on push
 python scripts/check.py          # must print "all gates green"
 mabat health                     # what this machine can report
 ```
@@ -72,8 +73,8 @@ every partial section at the bottom.
 
 - Python: `import mabat`; call `mabat.cpu()`, `mabat.snapshot(...)`, serialise with
   `mabat.to_dict` / `mabat.to_json`, flatten with `mabat.flatten`.
-- FastAPI: `examples/fastapi_app.py` (`uvicorn examples.fastapi_app:app`).
-- Streamlit: `examples/streamlit_app.py` (`streamlit run examples/streamlit_app.py`).
+- HTTP: `pip install -e packages/mabat-api` then `mabat-api` (or `mabat-api --host 0.0.0.0`).
+- Dashboard: `pip install -e packages/mabat-ui` then `mabat-ui` (any `streamlit run` flag passes through).
 - Anything else: `mabat watch <section> --json` prints NDJSON to stdout.
 
 ## 6. Extend it — adding a section
@@ -165,8 +166,8 @@ mabat bench                              # nothing over budget
 5. Check <https://pypi.org/project/mabat/>: description, links, classifiers, and
    `pip install mabat` from a clean venv.
 
-CI (`.github/workflows/check.yml`) runs the gates on Windows and Ubuntu for every push
-and pull request; `publish.yml` re-runs them before any upload and refuses a tag that
+CI (`.github/workflows/check.yml`) runs the gates on Windows, Ubuntu and macOS for every
+push and pull request; `publish.yml` re-runs them before any upload and refuses a tag that
 does not match `pyproject.toml`.
 
 ## 8. Troubleshooting

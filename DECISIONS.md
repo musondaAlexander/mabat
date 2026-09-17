@@ -359,3 +359,52 @@ Delivered everything listed as "remaining in the CLI": per-section flags, `--all
 with `clear`, watch session stats, `--redact`, `--log` + `history`, `speedtest`.
 Not done: command history / tab completion inside `mabat cli` on Windows (needs
 prompt_toolkit or pyreadline3 - left in BACKLOG.md). Suite: 269 tests, ~34 s.
+
+## 2026-09-16 — GPU load for non-NVIDIA adapters via Windows performance counters, opt-in
+
+Task Manager's GPU figures come from ``GPU Engine(*)\Utilization Percentage`` (one
+instance per process x adapter x engine) and ``GPU Adapter Memory(*)``; adapters are
+LUIDs, mapped to names and dedicated totals through ``HKLM\SOFTWARE\Microsoft\DirectX``
+(restricted to LUIDs present in the counters, because the registry keeps stale entries
+from earlier boots). Headline utilisation is the busiest engine type, like Task Manager;
+the per-engine breakdown is kept. Rate counters need two samples a second apart, so one
+call is ~3-6 s: the reading is opt-in (``gpu(counters=True)``, ``--counters``, or
+``[gpu] counters = true``) and NVML keeps precedence for NVIDIA boards. Aggregation is
+done inside the PowerShell script so the payload is a dozen numbers, not 600 instances.
+Rejected: enabling it by default (would make every snapshot 5 s slower on this host).
+
+## 2026-09-17 — Sprint 9: interactive-mode line editing via prompt_toolkit
+
+``mabat cli`` uses a prompt_toolkit ``PromptSession`` when stdin and stdout are terminals:
+persistent history in ``~/.mabat_history``, history auto-suggest, and tab completion whose
+tree is derived from the Typer app (commands -> targets -> flags) and filtered by the same
+metadata the CLI uses to reject misapplied flags, so completion never offers something
+the command would refuse. Without a terminal, or without the package, the loop falls back
+to plain ``input()`` so tests and pipes behave identically. Cost accepted: prompt_toolkit
+(2.9 MiB, one dependency) joins the ``cli`` extra. The session is verified headlessly
+through prompt_toolkit's pipe input. Rejected: pyreadline3 (Windows-only, unmaintained).
+
+## 2026-09-17 — Sprint 9: companion packages instead of examples
+
+``packages/mabat-api`` (FastAPI, ``mabat-api`` script) and ``packages/mabat-ui``
+(Streamlit, ``mabat-ui`` script) are separate distributions in the same repository,
+depending on ``mabat`` and nothing in its internals; they return ``mabat.to_dict(...)``
+so the API and CLI cannot disagree. The dashboard body is a ``st.fragment(run_every=...)``
+rather than sleep + rerun, which keeps the sidebar responsive and lets ``AppTest`` run it
+headlessly. Their tests and type checks are part of the root gates; CI installs both.
+``examples/`` was removed. Publishing them is a separate ``twine upload`` per package.
+
+## 2026-09-17 — Sprint 9: Windows disk I/O times are seconds, not milliseconds
+
+psutil documents ``read_time``/``write_time`` as milliseconds and they are on Linux and
+macOS; on Windows the values matched ``Win32_PerfRawData_PerfDisk_PhysicalDisk``'s
+100-ns counters divided by 10^7, i.e. whole seconds. The storage collector now applies a
+platform unit, turning "0m 01s" for 47 GiB into the real 19 min. Rejected: dropping the
+column on Windows (the figure is right once scaled).
+
+## 2026-09-17 — Sprint 9: CI covers macOS; pre-commit mirrors the gates
+
+``macos-latest`` joined the matrix; no test needed changing (socket listing already
+tolerates ``permission_denied``). ``.pre-commit-config.yaml`` runs ruff on commit and the
+full ``scripts/check.py`` on push, using the venv's own tools (``language: system``) so
+there is one definition of "green".
