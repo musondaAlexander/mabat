@@ -120,3 +120,22 @@ def test_attempt_returns_value_or_records_problem() -> None:
     assert attempt(sink, "bad", boom) is None
     assert sink.freeze()[0].kind is ProblemKind.UNSUPPORTED_PLATFORM
     assert sink.freeze()[0].source == "bad"
+
+
+def test_optional_call_handles_missing_and_failing_attributes() -> None:
+    from types import SimpleNamespace
+
+    from mabat._shared.models import optional_call
+
+    def broken() -> None:
+        raise OSError("hardware said no")
+
+    module = SimpleNamespace(works=lambda x: x * 2, broken=broken)
+    sink = Problems()
+    assert optional_call(sink, "fake.works", module, "works", 21) == 42
+    assert not sink
+    assert optional_call(sink, "fake.missing", module, "missing") is None
+    assert sink.freeze()[-1].kind is ProblemKind.UNSUPPORTED_PLATFORM
+    assert sink.freeze()[-1].source == "fake.missing"
+    assert optional_call(sink, "fake.broken", module, "broken") is None
+    assert sink.freeze()[-1].kind is ProblemKind.BACKEND_ERROR

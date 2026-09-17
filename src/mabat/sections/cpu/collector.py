@@ -6,7 +6,14 @@ from typing import Any
 
 from mabat._shared import platform as plat
 from mabat._shared.config import settings
-from mabat._shared.models import ProblemKind, Problems, Section, attempt, run_collector
+from mabat._shared.models import (
+    ProblemKind,
+    Problems,
+    Section,
+    attempt,
+    optional_call,
+    run_collector,
+)
 from mabat.sections.cpu.identity import read_identity
 from mabat.sections.cpu.models import CpuFrequency, CpuReport, CpuStats, CpuTimes, CpuUsage
 
@@ -15,7 +22,7 @@ _CORE_TIME_FIELDS = ("user", "system", "idle")
 
 
 def _frequency(psutil: Any, problems: Problems) -> CpuFrequency | None:
-    freq = attempt(problems, "psutil.cpu_freq", psutil.cpu_freq)
+    freq = optional_call(problems, "psutil.cpu_freq", psutil, "cpu_freq")
     if freq is None:
         return None
     # psutil reports 0.0 for min/max on platforms that do not expose them
@@ -27,7 +34,7 @@ def _frequency(psutil: Any, problems: Problems) -> CpuFrequency | None:
 
 
 def _times(psutil: Any, problems: Problems) -> CpuTimes | None:
-    times = attempt(problems, "psutil.cpu_times", psutil.cpu_times)
+    times = optional_call(problems, "psutil.cpu_times", psutil, "cpu_times")
     if times is None:
         return None
     fields = times._asdict()
@@ -40,7 +47,7 @@ def _times(psutil: Any, problems: Problems) -> CpuTimes | None:
 
 
 def _stats(psutil: Any, problems: Problems) -> CpuStats | None:
-    stats = attempt(problems, "psutil.cpu_stats", psutil.cpu_stats)
+    stats = optional_call(problems, "psutil.cpu_stats", psutil, "cpu_stats")
     if stats is None:
         return None
     return CpuStats(

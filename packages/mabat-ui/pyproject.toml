@@ -20,7 +20,7 @@ classifiers = [
 ]
 dependencies = [
     "mabat>=0.1.0",
-    "streamlit>=1.35",
+    "streamlit>=1.48",
     "pandas>=2",
 ]
 

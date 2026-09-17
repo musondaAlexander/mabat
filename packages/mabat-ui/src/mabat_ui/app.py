@@ -73,7 +73,7 @@ def dashboard() -> None:
             table = pd.DataFrame(
                 {"value": [str(v) for v in flat.values()]}, index=list(flat.keys())
             )
-            st.dataframe(table, use_container_width=True)
+            st.dataframe(table, width="stretch")
             for problem in section.problems:
                 st.caption(f"{problem.source} [{problem.kind.value}]: {problem.detail}")
 

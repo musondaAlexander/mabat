@@ -257,3 +257,19 @@ def test_cpu_is_unavailable_only_when_nothing_at_all_is_readable(
     section = mabat.cpu(sample_seconds=0)
     assert not section.available
     assert {p.source for p in section.problems} == {"cpu.identity", "psutil"}
+
+
+def test_usage_survives_psutil_without_cpu_freq(monkeypatch: pytest.MonkeyPatch) -> None:
+    """psutil has no cpu_freq on Apple Silicon; the section must stay available."""
+    fake = _fake_psutil()
+    del fake.cpu_freq
+    monkeypatch.setattr(plat, "optional_import", lambda name: fake)
+    problems = Problems()
+    usage = collector.read_usage(problems, 0.0)
+    assert usage is not None and usage.percent == 25.0
+    assert usage.frequency is None
+    kinds = {(p.source, p.kind) for p in problems.freeze()}
+    assert ("psutil.cpu_freq", ProblemKind.UNSUPPORTED_PLATFORM) in kinds
+
+    section = mabat.cpu(sample_seconds=0)
+    assert section.available and section.data is not None and section.data.usage is not None

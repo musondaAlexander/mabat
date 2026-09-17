@@ -419,3 +419,15 @@ interpreter (no ``mabat``/``ruff``/``mypy``/``pytest``) and re-runs itself with
 global ruff can never pair with a venv mypy. Both hooks route through the script
 (``--quick`` for the commit stage). Rejected: ``language: python`` hooks with
 ``additional_dependencies`` (a second, drifting copy of the toolchain).
+
+## 2026-09-17 — Backend functions are read through `optional_call`
+
+The first macOS CI run showed psutil has no ``cpu_freq`` on Apple Silicon; passing
+``psutil.cpu_freq`` into ``attempt()`` raised before the guard could catch it and took the
+whole CPU section (and everything that reads its headline) down. ``optional_call(problems,
+source, module, name, ...)`` looks the attribute up first, records an
+``unsupported_platform`` problem when it is absent, and guards the call otherwise; all
+nine direct ``psutil.<fn>`` reads now go through it. Also from that run: the test conftest
+disables Typer's forced terminal rendering (``GITHUB_ACTIONS`` makes it style ``--help``),
+and assertions on long lines compare collapsed whitespace. Rejected: catching
+``AttributeError`` at the call sites one by one (nine chances to forget the tenth).

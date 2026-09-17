@@ -8,7 +8,7 @@ from collections.abc import Iterable
 from fnmatch import fnmatch
 from typing import Any
 
-from mabat._shared.models import Problems, attempt
+from mabat._shared.models import Problems, attempt, optional_call
 from mabat.sections.network.models import Address, Counters, Interface, Rates
 
 _FAMILY_NAMES = {"AF_INET": "ipv4", "AF_INET6": "ipv6", "AF_LINK": "mac", "AF_PACKET": "mac"}
@@ -72,10 +72,10 @@ def _rates(key: str, counters: Counters, now: float) -> Rates | None:
 def read_interfaces(
     psutil: Any, problems: Problems, hidden_patterns: Iterable[str]
 ) -> tuple[Interface, ...] | None:
-    addrs = attempt(problems, "psutil.net_if_addrs", psutil.net_if_addrs)
+    addrs = optional_call(problems, "psutil.net_if_addrs", psutil, "net_if_addrs")
     if addrs is None:
         return None
-    stats = attempt(problems, "psutil.net_if_stats", psutil.net_if_stats) or {}
+    stats = optional_call(problems, "psutil.net_if_stats", psutil, "net_if_stats") or {}
     io = (
         attempt(problems, "psutil.net_io_counters", lambda: psutil.net_io_counters(pernic=True))
         or {}

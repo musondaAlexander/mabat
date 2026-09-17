@@ -12,6 +12,7 @@ from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from enum import StrEnum
+from typing import Any
 
 log = logging.getLogger("mabat")
 
@@ -136,3 +137,19 @@ def attempt[T](problems: Problems, source: str, read: Callable[[], T]) -> T | No
     except Exception as exc:  # broad on purpose: a failed reading is data, not an error
         problems.capture(source, exc)
         return None
+
+
+def optional_call(
+    problems: Problems, source: str, module: Any, name: str, *args: Any, **kwargs: Any
+) -> Any:
+    """Call ``module.name(*args, **kwargs)`` if the attribute exists, else record an
+    ``unsupported_platform`` problem against ``source`` and return ``None``.
+
+    Backends drop functions per platform (psutil has no ``cpu_freq`` on Apple Silicon);
+    reading the attribute outside a guard would take the whole section down.
+    """
+    fn = getattr(module, name, None)
+    if fn is None:
+        problems.add(source, ProblemKind.UNSUPPORTED_PLATFORM, f"{name} is not available here")
+        return None
+    return attempt(problems, source, lambda: fn(*args, **kwargs))

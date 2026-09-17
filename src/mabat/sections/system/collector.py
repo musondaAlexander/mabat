@@ -9,7 +9,15 @@ from typing import Any
 
 from mabat._shared import platform as plat
 from mabat._shared.config import settings
-from mabat._shared.models import ProblemKind, Problems, Section, attempt, now, run_collector
+from mabat._shared.models import (
+    ProblemKind,
+    Problems,
+    Section,
+    attempt,
+    now,
+    optional_call,
+    run_collector,
+)
 from mabat.sections.system.models import (
     Battery,
     OsIdentity,
@@ -55,7 +63,7 @@ def read_os(problems: Problems) -> OsIdentity:
 
 
 def read_uptime(psutil: Any, problems: Problems) -> Uptime | None:
-    boot = attempt(problems, "psutil.boot_time", psutil.boot_time)
+    boot = optional_call(problems, "psutil.boot_time", psutil, "boot_time")
     if boot is None:
         return None
     booted = datetime.fromtimestamp(float(boot), tz=UTC)
@@ -63,7 +71,7 @@ def read_uptime(psutil: Any, problems: Problems) -> Uptime | None:
 
 
 def read_users(psutil: Any, problems: Problems) -> tuple[User, ...] | None:
-    users = attempt(problems, "psutil.users", psutil.users)
+    users = optional_call(problems, "psutil.users", psutil, "users")
     if users is None:
         return None
     return tuple(
