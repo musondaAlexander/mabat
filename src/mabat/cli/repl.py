@@ -15,6 +15,7 @@ from rich.text import Text
 
 import mabat
 from mabat._shared.platform import PLATFORM_NAME
+from mabat.cli.prompt import line_reader
 from mabat.cli.render.common import DOT, UNICODE, console, error_console
 
 PROMPT = "[bold cyan]mabat>[/] "
@@ -82,6 +83,13 @@ def banner(app: typer.Typer) -> None:
     table.add_row("quit", "Leave interactive mode (also: exit, q, Ctrl+D).")
     console.print(table)
     console.print(
+        Text(
+            "Tab completes commands, sections and flags; Up/Down recall history "
+            "(kept across sessions).",
+            style="dim",
+        )
+    )
+    console.print(
         Text.assemble(
             ("sections: ", "dim"),
             ", ".join((*mabat.section_names(), "snapshot")),
@@ -124,9 +132,10 @@ def run_line(app: typer.Typer, line: str) -> int:
 def repl(app: typer.Typer) -> None:
     brand()
     banner(app)
+    read_line, _mode = line_reader(app, PROMPT, hidden=NESTED_WORDS)
     while True:
         try:
-            line = console.input(PROMPT)
+            line = read_line()
         except EOFError:
             console.print()
             break
