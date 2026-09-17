@@ -52,12 +52,30 @@ def test_partitions_with_one_unreadable_volume() -> None:
     assert "G:" in problem.source
 
 
-def test_io_counters_convert_milliseconds_and_optional_busy() -> None:
+def test_io_counters_convert_milliseconds_and_optional_busy(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(collector, "_TIME_UNIT_SECONDS", 1.0 / 1000.0)  # Linux/macOS units
     disks = collector.read_io(_fake_psutil(), Problems())
     assert disks is not None
     by_name = {d.name: d for d in disks}
     assert by_name["sda"].read_seconds == 1.5 and by_name["sda"].busy_seconds == 3.0
     assert by_name["PhysicalDrive0"].busy_seconds is None
+
+
+def test_io_counters_are_whole_seconds_on_windows(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(collector, "_TIME_UNIT_SECONDS", 1.0)  # what Windows psutil returns
+    disks = collector.read_io(_fake_psutil(), Problems())
+    assert disks is not None
+    by_name = {d.name: d for d in disks}
+    assert (
+        by_name["PhysicalDrive0"].read_seconds == 5.0
+        and by_name["PhysicalDrive0"].write_seconds == 6.0
+    )
+
+
+def test_time_unit_matches_platform() -> None:
+    assert (1.0 if plat.IS_WINDOWS else 0.001) == collector._TIME_UNIT_SECONDS
 
 
 def test_io_counters_empty_is_not_present() -> None:

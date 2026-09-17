@@ -41,6 +41,16 @@ def read_partitions(
     return tuple(_partition(psutil, part, problems) for part in parts)
 
 
+# psutil documents read_time/write_time as milliseconds, and they are on Linux and macOS.
+# On Windows the values are whole seconds: DISK_PERFORMANCE counts 100-ns ticks and
+# psutil divides by 10^7 (verified against Win32_PerfRawData_PerfDisk_PhysicalDisk).
+_TIME_UNIT_SECONDS = 1.0 if plat.IS_WINDOWS else 1.0 / 1000.0
+
+
+def _seconds(value: float | None) -> float | None:
+    return None if value is None else float(value) * _TIME_UNIT_SECONDS
+
+
 def read_io(psutil: Any, problems: Problems) -> tuple[DiskIo, ...] | None:
     counters = attempt(
         problems, "psutil.disk_io_counters", lambda: psutil.disk_io_counters(perdisk=True)
@@ -52,7 +62,8 @@ def read_io(psutil: Any, problems: Problems) -> tuple[DiskIo, ...] | None:
         return ()
     disks = []
     for name, io in counters.items():
-        busy = getattr(io, "busy_time", None)
+        read_seconds = _seconds(io.read_time)
+        write_seconds = _seconds(io.write_time)
         disks.append(
             DiskIo(
                 name=str(name),
@@ -60,9 +71,9 @@ def read_io(psutil: Any, problems: Problems) -> tuple[DiskIo, ...] | None:
                 write_count=int(io.write_count),
                 read_bytes=int(io.read_bytes),
                 write_bytes=int(io.write_bytes),
-                read_seconds=float(io.read_time) / 1000.0,
-                write_seconds=float(io.write_time) / 1000.0,
-                busy_seconds=float(busy) / 1000.0 if busy is not None else None,
+                read_seconds=read_seconds if read_seconds is not None else 0.0,
+                write_seconds=write_seconds if write_seconds is not None else 0.0,
+                busy_seconds=_seconds(getattr(io, "busy_time", None)),
             )
         )
     return tuple(disks)
