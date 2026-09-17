@@ -5,20 +5,20 @@ introduced a pattern. Newest at the bottom.
 
 ## 2026-09-16 — Library first, CLI as a thin layer
 
-mabat is a library whose readings must be callable from other programs (FastAPI, Streamlit)
-without dragging a terminal UI along. Decided: `typer`/`rich` are an optional extra
-(`mabat[cli]`) and may only be imported under `mabat/cli/`; the core depends on `psutil`
-and `py-cpuinfo` alone. Enforced by the boundary guard test, not by convention.
-Rejected: making typer/rich hard dependencies (simpler install, but every API service
-would inherit UI packages).
+mabat is a library whose readings must be callable from other programs without dragging
+a terminal UI along. Decided: `typer`/`rich` are an optional extra (`mabat[cli]`) and may
+only be imported under `mabat/cli/`; the core depends on `psutil` and `py-cpuinfo` alone.
+Enforced by the boundary guard test, not by convention. Rejected: making typer/rich hard
+dependencies (simpler install, but every program embedding mabat would inherit UI
+packages).
 
 ## 2026-09-16 — Frozen dataclasses, not pydantic
 
 Data models are stdlib frozen dataclasses with a single outward serialiser
-(`_shared/serialize.py`). Chosen to keep the core dependency-free; FastAPI accepts
-dataclasses as response models natively and Streamlit only needs dicts/dataframes.
-Rejected: pydantic v2 (free JSON Schema, but a hard dependency for a benefit that only the
-future API layer would use — it can wrap the dataclasses at that boundary instead).
+(`_shared/serialize.py`). Chosen to keep the core dependency-free; a program can use the
+dataclasses directly or take `to_dict()` output. Rejected: pydantic v2 (free JSON Schema,
+but a hard dependency for a benefit the library itself never uses — a program that wants
+validated models can wrap the dataclasses at its own boundary).
 
 ## 2026-09-16 — One result shape: `Section[T]`
 
@@ -235,10 +235,11 @@ callers do not need).
 
 The socket table is large (1,100 rows here), noisy and needs elevation on macOS, so it
 is excluded from `snapshot()` and from plain `network()`. `network(connections=True)`
-embeds it for API consumers; `mabat.connections()` / `mabat connections` return just the
-table for the netstat use case. Owning process *names* are resolved (cheap); command
-lines are never collected (privacy guard P2). The implementation module is `sockets.py`
-so the package can re-export the `connections()` function without shadowing a module.
+embeds it for callers that want one payload; `mabat.connections()` / `mabat connections`
+return just the table for the netstat use case. Owning process *names* are resolved
+(cheap); command lines are never collected (privacy guard P2). The implementation module
+is `sockets.py` so the package can re-export the `connections()` function without
+shadowing a module.
 
 ## 2026-09-16 — Sprint 4 retrospective
 
@@ -251,8 +252,8 @@ and polish, S6 hardening.
 ## 2026-09-16 — Snapshot selection keeps the shape; options route by field metadata
 
 `snapshot(only=..., skip=...)` never removes fields: sections left out are present with
-`available=False` and a `skipped` problem, so FastAPI/Streamlit consumers get a stable
-schema whatever the caller trimmed. Collector options are declared on the `Snapshot`
+`available=False` and a `skipped` problem, so every consumer gets a stable schema
+whatever the caller trimmed. Collector options are declared on the `Snapshot`
 field (`OPTIONS_KEY`), and `snapshot(**options)` routes each one only to collectors that
 declared it - today `connections` -> `network`. Rejected: an `Optional` field per
 section (breaks the "one shape" promise) and special-casing network in the composer.
@@ -303,9 +304,8 @@ timeouts; no settings value reaches a command line.
 
 ## 2026-09-16 — Sprint 6 retrospective (hardening)
 
-Delivered: cheap process mode, latency benchmark, FastAPI and Streamlit examples, README
-rewrite (integration, security & privacy, performance), RUNBOOK.md, CI snapshot smoke,
-probe-address validation. Deviations: none. The project is feature-complete for its v1
+Delivered: cheap process mode, latency benchmark, README rewrite (integration, security &
+privacy, performance), RUNBOOK.md, CI snapshot smoke, probe-address validation. Deviations: none. The project is feature-complete for its v1
 scope; remaining items are in BACKLOG.md (live LibreHardwareMonitor verification,
 redaction, Radeon utilisation, cgroup awareness, history). Version left at 0.1.0 for the
 owner to bump at release.
@@ -384,16 +384,6 @@ to plain ``input()`` so tests and pipes behave identically. Cost accepted: promp
 (2.9 MiB, one dependency) joins the ``cli`` extra. The session is verified headlessly
 through prompt_toolkit's pipe input. Rejected: pyreadline3 (Windows-only, unmaintained).
 
-## 2026-09-17 — Sprint 9: companion packages instead of examples
-
-``packages/mabat-api`` (FastAPI, ``mabat-api`` script) and ``packages/mabat-ui``
-(Streamlit, ``mabat-ui`` script) are separate distributions in the same repository,
-depending on ``mabat`` and nothing in its internals; they return ``mabat.to_dict(...)``
-so the API and CLI cannot disagree. The dashboard body is a ``st.fragment(run_every=...)``
-rather than sleep + rerun, which keeps the sidebar responsive and lets ``AppTest`` run it
-headlessly. Their tests and type checks are part of the root gates; CI installs both.
-``examples/`` was removed. Publishing them is a separate ``twine upload`` per package.
-
 ## 2026-09-17 — Sprint 9: Windows disk I/O times are seconds, not milliseconds
 
 psutil documents ``read_time``/``write_time`` as milliseconds and they are on Linux and
@@ -432,15 +422,18 @@ disables Typer's forced terminal rendering (``GITHUB_ACTIONS`` makes it style ``
 and assertions on long lines compare collapsed whitespace. Rejected: catching
 ``AttributeError`` at the call sites one by one (nine chances to forget the tenth).
 
-## 2026-09-17 — Companion packages removed: one package, called from Python or the CLI
+## 2026-09-17 — One package, called from Python or the CLI; front-end distributions removed
 
-``packages/mabat-api`` and ``packages/mabat-ui`` are deleted, together with everything
-that existed only for them: the FastAPI, uvicorn, httpx, Streamlit and pandas entries in
-the ``dev`` extra, the extra CI install targets, their mypy/pytest/ruff paths, the README
-and RUNBOOK sections and the sprint-table mentions. Owner's decision: mabat is one
-installable package that a Python program imports and a CLI wraps, and that is the whole
-product for now; the front-ends doubled the toolchain (Streamlit alone pulls in pandas,
-pyarrow and altair) for something not being shipped. The library did not change - the
-serialiser, ``health()`` and the stable ``Section`` shape stay the integration surface
-for any program - and boundary guard R2 still forbids the core from importing a web or
-dashboard framework. Not carried in BACKLOG.md either; that is deliberate.
+The two companion front-end distributions added in S9 (an HTTP service and a live
+dashboard, each its own package under a top-level ``packages/`` directory) are deleted,
+together with everything that existed only for them: their five entries in the ``dev``
+extra, the extra CI install targets, their mypy/pytest/ruff paths, the README and RUNBOOK
+sections and the sprint-table mentions. Owner's decision: mabat is one installable
+package that a Python program imports and a CLI wraps, and that is the whole product;
+the front-ends doubled the toolchain for something not being shipped. The library did
+not change - the serialiser, ``health()`` and the stable ``Section`` shape stay the
+integration surface for any program. Boundary guard R2 used to name the web and
+dashboard frameworks it forbade; with the owner's sign-off it now names nothing and is
+stricter: outside ``mabat/cli/`` the package statically imports only the standard
+library and itself (every backend arrives through ``optional_import``), and under
+``cli/`` only the ``cli`` extra. Not carried in BACKLOG.md either; that is deliberate.

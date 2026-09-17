@@ -1,7 +1,8 @@
 """Boundary guard: mabat's architecture rules as executable checks (AGENT.md §4.3, §9).
 
 R1  Only ``mabat/cli/`` may import UI libraries (typer, rich, click).
-R2  Nothing in mabat imports a web or dashboard framework - those are *consumers* of mabat.
+R2  Outside ``mabat/cli/`` the package statically imports only the standard library and
+    itself (backends arrive through ``optional_import``); under ``cli/`` only the ``cli`` extra.
 R3  A section never imports another section.
 R4  Sections import ``mabat._shared`` only - never the composers, the CLI or top-level mabat.
 R5  ``mabat/_shared/`` never imports upward (sections, composers, CLI, top-level mabat).
@@ -11,12 +12,13 @@ R7  Environment variables are read only in ``mabat/_shared/config.py``.
 
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 
 from tests.guards.conftest import SRC, attribute_uses, imports_of, module_name, source_files
 
 UI_LIBRARIES = {"typer", "rich", "click"}
-CONSUMER_FRAMEWORKS = {"fastapi", "starlette", "streamlit", "flask", "django", "uvicorn"}
+CLI_EXTRA = UI_LIBRARIES | {"prompt_toolkit"}  # the ``cli`` extra in pyproject.toml
 SHELL_MODULES = {"subprocess", "pty", "commands"}
 SHELL_ATTRIBUTES = {"os.system", "os.popen", "os.execv", "os.execvp", "os.spawnv", "os.startfile"}
 ENV_ATTRIBUTES = {"os.environ", "os.getenv", "os.putenv", "os.environb"}
@@ -53,14 +55,18 @@ def test_r1_ui_libraries_only_in_cli() -> None:
     _fail("R1 (typer/rich/click only under mabat/cli/)", violations)
 
 
-def test_r2_no_consumer_frameworks_anywhere() -> None:
-    violations = [
-        f"{path.relative_to(SRC)}:{line} imports {name}"
-        for path in source_files()
-        for name, line in imports_of(path)
-        if _top(name) in CONSUMER_FRAMEWORKS
-    ]
-    _fail("R2 (fastapi/streamlit/etc. are consumers, never imports)", violations)
+def test_r2_only_declared_dependencies_are_imported() -> None:
+    violations = []
+    for path in source_files():
+        allowed = CLI_EXTRA if _is_under(path, "cli") else set()
+        violations += [
+            f"{path.relative_to(SRC)}:{line} imports {name}"
+            for name, line in imports_of(path)
+            if _top(name) not in sys.stdlib_module_names
+            and _top(name) != "mabat"
+            and _top(name) not in allowed
+        ]
+    _fail("R2 (core imports stdlib + mabat only; cli/ adds the cli extra)", violations)
 
 
 def test_r3_sections_never_import_each_other() -> None:
