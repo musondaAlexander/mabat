@@ -10,7 +10,7 @@ git clone https://github.com/musondaAlexander/mabat.git
 cd mabat
 python -m venv venv
 venv\Scripts\activate            # Windows        (Linux/macOS: source venv/bin/activate)
-pip install -e ".[all,dev]" -e packages/mabat-api -e packages/mabat-ui
+pip install -e ".[all,dev]"
 pre-commit install --hook-type pre-commit --hook-type pre-push   # ruff on commit, full gates on push
 python scripts/check.py          # must print "all gates green"
 mabat health                     # what this machine can report
@@ -72,9 +72,8 @@ every partial section at the bottom.
 ## 5. Use it from other programs
 
 - Python: `import mabat`; call `mabat.cpu()`, `mabat.snapshot(...)`, serialise with
-  `mabat.to_dict` / `mabat.to_json`, flatten with `mabat.flatten`.
-- HTTP: `pip install -e packages/mabat-api` then `mabat-api` (or `mabat-api --host 0.0.0.0`).
-- Dashboard: `pip install -e packages/mabat-ui` then `mabat-ui` (any `streamlit run` flag passes through).
+  `mabat.to_dict` / `mabat.to_json`, flatten with `mabat.flatten`; `mabat.health()` first
+  to learn what the host can answer.
 - Anything else: `mabat watch <section> --json` prints NDJSON to stdout.
 
 ## 6. Extend it — adding a section

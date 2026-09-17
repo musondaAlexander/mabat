@@ -104,7 +104,7 @@ class CommandResult:
         return self.returncode == 0
 
 
-# Keep a console window from flashing when a GUI (e.g. Streamlit) spawns a helper on Windows.
+# Keep a console window from flashing when a GUI program spawns a helper on Windows.
 _CREATION_FLAGS: int = getattr(subprocess, "CREATE_NO_WINDOW", 0)
 
 

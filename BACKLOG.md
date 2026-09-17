@@ -20,8 +20,6 @@ without being pulled into a sprint plan first.
   numbers inside Docker reflect limits, not the host (reference doc §10).
 - ~~History / time series~~ — done in S8 as `watch --log` + `mabat history` (NDJSON).
   A SQLite/CSV sink and charts remain open.
-- ~~FastAPI and Streamlit front-ends as packages~~ — done in S9: `packages/mabat-api`
-  and `packages/mabat-ui` (each its own distribution; publish separately).
 
 - ~~Faster guard suite~~ — done in S6: the suite pins `[processes] top_n = 0`
   (count-only mode) and `scripts/bench.py` holds the latency budgets.

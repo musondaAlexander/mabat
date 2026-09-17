@@ -30,8 +30,5 @@ First release.
   `--connections`, `--all`, `--kind`), `--redact` everywhere, `--json` everywhere,
   `--no-color`, `--width`, shell completion.
 
-### Integrations
-- `examples/fastapi_app.py` and `examples/streamlit_app.py`.
-
 [Unreleased]: https://github.com/musondaAlexander/mabat/compare/v0.1.0...HEAD
 [0.1.0]: https://github.com/musondaAlexander/mabat/releases/tag/v0.1.0

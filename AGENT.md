@@ -196,7 +196,7 @@ Starting is cheap with an agent; finishing is the scarce resource. These rules p
 | Test framework | `pytest` (`guard` marker for release-blocking tests) |
 | Module system | `mabat/_shared/` kernel; one package per domain under `mabat/sections/`; `_health.py` and `_snapshot.py` compose; `mabat/cli/` renders |
 | Boundary enforcement | `tests/guards/test_boundaries.py` (AST import rules) run by `scripts/check.py` and CI |
-| Auth mechanism | N/A — local library/CLI. Auth and rate limiting belong to the future FastAPI layer |
+| Auth mechanism | N/A — local library/CLI; no network surface |
 | Error shape | `Section[T]` with `data`, `available`, `problems: tuple[Problem]`; collectors never raise |
 | Error tracking | `logging.getLogger("mabat")`; collectors log at debug/warning; applications attach handlers |
 | Health check | `mabat.health()` / `mabat health` (exit 1 when a core provider is missing) |
@@ -218,10 +218,10 @@ Starting is cheap with an agent; finishing is the scarce resource. These rules p
 | S3 GPU + Sensors ✅ | NVML + WMI-static GPU providers; LibreHardwareMonitor WMI temps/fans provider + null | S0 |
 | S4 Network ✅ | interfaces, addresses, link stats, counters, outbound IP, connections behind a flag | S0 |
 | S5 Snapshot + polish ✅ | `mabat snapshot --json`, `watch snapshot`, `python -m mabat`, polish | S1–S4 |
-| S6 Hardening ✅ | README with FastAPI + Streamlit wiring, latency budget (`scripts/bench.py`), subprocess security sweep, RUNBOOK.md | S5 |
+| S6 Hardening ✅ | README integration section, latency budget (`scripts/bench.py`), subprocess security sweep, RUNBOOK.md | S5 |
 | S7 CLI completeness ✅ | per-section flags, `--all`, `--kind`, `config`, `bench`, completion, `--no-color`/`--width`, branded interactive mode, watch session stats | S6 |
 | S8 Backlog features ✅ | `--redact`, `watch --log` + `history`, `speedtest` | S7 |
-| S9 Remaining items ✅ | GPU perf counters for non-NVIDIA adapters, prompt_toolkit line editing, macOS CI, `mabat-api`/`mabat-ui` packages, Windows disk time units, pre-commit | S8 |
+| S9 Remaining items ✅ | GPU perf counters for non-NVIDIA adapters, prompt_toolkit line editing, macOS CI, Windows disk time units, pre-commit | S8 |
 
 ---
 

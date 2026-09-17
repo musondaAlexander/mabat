@@ -1,6 +1,6 @@
 """The single outward serialisation path.
 
-Every consumer - CLI ``--json``, a FastAPI response, a Streamlit dataframe - goes through
+Every consumer - CLI ``--json``, your own program - goes through
 :func:`to_dict` / :func:`to_json`. Internal objects (psutil namedtuples, NVML handles,
 WMI rows) are rejected so they can never leak across the boundary by accident.
 """

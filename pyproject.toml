@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "mabat"
 version = "0.1.0"
-description = "Observe your machine - CPU, GPU, memory, storage, network and OS - as plain Python data, a CLI, or an API."
+description = "Observe your machine - CPU, GPU, memory, storage, network and OS - as plain Python data or a CLI."
 readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]
@@ -14,7 +14,7 @@ maintainers = [{ name = "Alexander Musonda" }]
 requires-python = ">=3.12"
 keywords = [
     "system-monitor", "hardware", "cpu", "gpu", "memory", "disk", "network", "sensors",
-    "psutil", "nvml", "cli", "observability", "dashboard", "fastapi", "streamlit",
+    "psutil", "nvml", "cli", "observability", "dashboard",
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -58,12 +58,6 @@ dev = [
     "mypy>=1.11",
     "pytest>=8",
     "types-psutil",
-    # the companion packages under packages/ and their test clients
-    "fastapi>=0.110",
-    "uvicorn>=0.29",
-    "httpx>=0.27",
-    "streamlit>=1.48",
-    "pandas>=2",
     "pre-commit>=3.7",
 ]
 
@@ -101,23 +95,22 @@ select = [
 "src/mabat/_shared/platform.py" = ["S603", "S607"]  # the one sanctioned subprocess site
 "src/mabat/cli/**" = ["T20"]                        # the CLI is allowed to print
 "tests/**" = ["S101", "S603", "S607", "T20"]        # asserts and helper commands in tests
-"packages/**/tests/**" = ["S101", "T20"]
 "scripts/**" = ["S603", "S607", "T20"]
 
 [tool.mypy]
 strict = true
 python_version = "3.12"
-files = ["src", "tests", "scripts", "packages/mabat-api/src", "packages/mabat-ui/src"]
+files = ["src", "tests", "scripts"]
 warn_unreachable = true
 explicit_package_bases = true
-mypy_path = "src:packages/mabat-api/src:packages/mabat-ui/src"
+mypy_path = "src"
 
 [[tool.mypy.overrides]]
-module = ["cpuinfo", "pynvml", "pySMART", "pySMART.*", "speedtest", "pandas", "pandas.*"]
+module = ["cpuinfo", "pynvml", "pySMART", "pySMART.*", "speedtest"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
-testpaths = ["tests", "packages/mabat-api/tests", "packages/mabat-ui/tests"]
+testpaths = ["tests"]
 addopts = "-q --strict-markers"
 markers = [
     "guard: release-blocking guard test (owned by the user; do not weaken without sign-off)",

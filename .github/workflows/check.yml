@@ -20,7 +20,7 @@ jobs:
           python-version: "3.12"
           cache: pip
       - name: Install
-        run: python -m pip install -e ".[all,dev]" -e packages/mabat-api -e packages/mabat-ui
+        run: python -m pip install -e ".[all,dev]"
       - name: Quality gates
         run: python scripts/check.py
       - name: Health (smoke)

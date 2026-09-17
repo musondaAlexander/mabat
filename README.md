@@ -1,11 +1,11 @@
 # mabat
 
 Observe your machine — CPU, GPU, memory, storage, network, sensors and OS — as plain
-Python data, a CLI, or an API.
+Python data or a CLI.
 
 `mabat` is a **library first**: every reading is a frozen dataclass wrapped in a
 `Section`, serialisable to JSON with one function, and callable from your own code —
-FastAPI, Streamlit, a cron job. The CLI is a thin layer on top and never leaks into the
+a script, a service, a cron job. The CLI is a thin layer on top and never leaks into the
 library (a guard test enforces it).
 
 ```python
@@ -114,17 +114,10 @@ a `Problem` whose `kind` (`missing_dependency`, `unsupported_platform`,
 `permission_denied`, `not_present`, `backend_error`, `skipped`) tells a UI what to say, and
 `data` carries whatever *was* readable. A section with data *and* problems is partial.
 
-## Use it from FastAPI or Streamlit
+## Use it from your own code
 
-Two companion packages live in [`packages/`](https://github.com/musondaAlexander/mabat/blob/main/packages) and install separately:
-
-```console
-pip install mabat-api && mabat-api          # FastAPI: /health, /sections/{name}, /snapshot, /connections, /problems (docs at /docs)
-pip install mabat-ui  && mabat-ui           # Streamlit dashboard, auto-refreshing, with a redact switch
-```
-
-Both are thin: they call the same collectors as the CLI and return `mabat.to_dict(...)`.
-The pattern for your own integration is three lines:
+The CLI is one consumer of the library, built on the same three calls your program would
+use:
 
 ```python
 snap = mabat.snapshot(only=["cpu", "memory"])  # collect
@@ -132,8 +125,10 @@ payload = mabat.to_dict(snap)  # the one serialisation path
 rows = mabat.flatten(snap.cpu.data)  # {"identity.brand": ..., "usage.percent": ...}
 ```
 
-Because the library never imports typer or rich, a service can install plain `mabat`
-(no extras) and stay slim.
+`mabat.health()` says up front which sources the host can answer, and every
+`mabat ... --json` output is exactly `mabat.to_dict(...)` of the same call, so a program
+and the CLI can never disagree. Because the library never imports typer or rich, a
+program can install plain `mabat` (no extras) and stay slim.
 
 ## Configuration
 
@@ -215,7 +210,6 @@ src/mabat/
 tests/
   guards/          release-blocking guard tests (user-owned; boundary, serialisation, degradation, privacy)
   unit/
-packages/          mabat-api (FastAPI) and mabat-ui (Streamlit), separate distributions
 scripts/           check.py (quality gates), bench.py (latency budget)
 ```
 

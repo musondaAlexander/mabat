@@ -1,7 +1,7 @@
 """Which data sources work on this machine - mabat's health check.
 
 ``health()`` is cheap (no processes are spawned, nothing is sampled) and is what a
-FastAPI ``/health`` endpoint or a Streamlit sidebar should call first.
+program embedding mabat should call first.
 """
 
 from __future__ import annotations

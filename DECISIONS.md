@@ -431,3 +431,16 @@ nine direct ``psutil.<fn>`` reads now go through it. Also from that run: the tes
 disables Typer's forced terminal rendering (``GITHUB_ACTIONS`` makes it style ``--help``),
 and assertions on long lines compare collapsed whitespace. Rejected: catching
 ``AttributeError`` at the call sites one by one (nine chances to forget the tenth).
+
+## 2026-09-17 — Companion packages removed: one package, called from Python or the CLI
+
+``packages/mabat-api`` and ``packages/mabat-ui`` are deleted, together with everything
+that existed only for them: the FastAPI, uvicorn, httpx, Streamlit and pandas entries in
+the ``dev`` extra, the extra CI install targets, their mypy/pytest/ruff paths, the README
+and RUNBOOK sections and the sprint-table mentions. Owner's decision: mabat is one
+installable package that a Python program imports and a CLI wraps, and that is the whole
+product for now; the front-ends doubled the toolchain (Streamlit alone pulls in pandas,
+pyarrow and altair) for something not being shipped. The library did not change - the
+serialiser, ``health()`` and the stable ``Section`` shape stay the integration surface
+for any program - and boundary guard R2 still forbids the core from importing a web or
+dashboard framework. Not carried in BACKLOG.md either; that is deliberate.

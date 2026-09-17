@@ -1,7 +1,6 @@
-# Documentation and examples ship in the source distribution alongside the code.
+# Documentation ships in the source distribution alongside the code.
 include LICENSE README.md CHANGELOG.md RUNBOOK.md DECISIONS.md BACKLOG.md AGENT.md
 recursive-include src/mabat *.toml py.typed
 prune tests
-prune packages
 prune scripts
 prune .github
