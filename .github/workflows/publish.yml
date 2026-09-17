@@ -19,7 +19,7 @@ jobs:
           python-version: "3.12"
       - name: Gates
         run: |
-          python -m pip install -e ".[all,dev]"
+          python -m pip install -e ".[all,dev]" -e packages/mabat-api -e packages/mabat-ui
           python scripts/check.py
       - name: Tag matches pyproject version
         run: |
