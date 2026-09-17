@@ -185,5 +185,6 @@ does not match `pyproject.toml`.
 | `?` glyphs or `UnicodeEncodeError` in a console | legacy code page | mabat falls back to ASCII automatically; if you see errors, run `chcp 65001` or use Windows Terminal |
 | `SettingsError: unknown setting` | typo in `mabat.toml` | compare against `defaults.toml` |
 | tests slow | real process scan in guards | the suite pins `top_n = 0`; check `tests/conftest.py` is being picked up |
+| push rejected by the pre-push hook from VS Code / a GUI | the hook ran with a Python that lacks the project | `scripts/check.py` re-runs itself with `venv/`; make sure the venv exists at the repo root (`venv` or `.venv`) |
 | `--top does not apply to 'cpu'` | flag given to a section that has no such option | the message lists the sections that accept it |
 | speedtest: `missing_dependency` | `speedtest-cli` not installed | `pip install "mabat[speedtest]"` |

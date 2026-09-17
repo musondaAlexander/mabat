@@ -408,3 +408,14 @@ column on Windows (the figure is right once scaled).
 tolerates ``permission_denied``). ``.pre-commit-config.yaml`` runs ruff on commit and the
 full ``scripts/check.py`` on push, using the venv's own tools (``language: system``) so
 there is one definition of "green".
+
+## 2026-09-17 — Hooks re-exec into the repository venv
+
+The first push from VS Code was rejected by the new pre-push hook: the GUI's git runs
+without the venv on PATH, so the gates ran under the global interpreter and mypy could
+not see the project's dependencies. ``scripts/check.py`` now detects a foreign
+interpreter (no ``mabat``/``ruff``/``mypy``/``pytest``) and re-runs itself with
+``venv/`` or ``.venv/`` at the repo root, and invokes every tool as ``python -m`` so a
+global ruff can never pair with a venv mypy. Both hooks route through the script
+(``--quick`` for the commit stage). Rejected: ``language: python`` hooks with
+``additional_dependencies`` (a second, drifting copy of the toolchain).

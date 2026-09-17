@@ -4,18 +4,14 @@
 #   pip install pre-commit
 #   pre-commit install --hook-type pre-commit --hook-type pre-push
 #
-# All hooks are `language: system`: they use the tools already in the active venv.
+# Both hooks go through scripts/check.py, which re-runs itself with the repository venv
+# when the caller (a GUI's git, a bare shell) does not have it on PATH.
 repos:
   - repo: local
     hooks:
-      - id: ruff-format
-        name: ruff format
-        entry: ruff format
-        language: system
-        types: [python]
-      - id: ruff-check
-        name: ruff check (autofix)
-        entry: ruff check --fix
+      - id: quick
+        name: ruff format + check (autofix)
+        entry: python scripts/check.py --quick
         language: system
         types: [python]
       - id: gates
