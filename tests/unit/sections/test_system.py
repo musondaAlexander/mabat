@@ -214,7 +214,8 @@ def test_system_without_psutil_keeps_os_identity(monkeypatch: pytest.MonkeyPatch
     assert section.available
     assert section.data is not None and section.data.os is not None
     assert section.data.processes is None
-    assert {p.source for p in section.problems} == {"psutil"}
+    sources = {p.source for p in section.problems}
+    assert sources == ({"psutil", "distro"} if plat.IS_LINUX else {"psutil"})
 
 
 def test_system_rejects_negative_arguments() -> None:

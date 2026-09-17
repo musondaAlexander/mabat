@@ -133,7 +133,7 @@ def test_history_handles_snapshots_bad_lines_and_missing_files(tmp_path: Path) -
 
     empty = tmp_path / "empty.ndjson"
     empty.write_text("", encoding="utf-8")
-    assert "no readings" in runner.invoke(app, ["history", str(empty)]).output
+    assert "no readings" in " ".join(runner.invoke(app, ["history", str(empty)]).output.split())
 
 
 # --- speedtest --------------------------------------------------------------------------------

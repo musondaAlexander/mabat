@@ -9,11 +9,13 @@ import pytest
 
 from mabat._shared import config
 
-# Rich reads FORCE_COLOR/NO_COLOR when a Console is created (at import of mabat.cli).
-# Keep CLI output plain and deterministic whatever the developer's shell exports.
-for _name in ("FORCE_COLOR", "CLICOLOR_FORCE", "TTY_COMPATIBLE"):
+# Rich reads FORCE_COLOR/NO_COLOR when a Console is created (at import of mabat.cli), and
+# Typer forces terminal rendering of --help whenever GITHUB_ACTIONS, FORCE_COLOR or
+# PY_COLORS is set. Keep CLI output plain and deterministic whatever the shell or CI exports.
+for _name in ("FORCE_COLOR", "CLICOLOR_FORCE", "TTY_COMPATIBLE", "PY_COLORS"):
     os.environ.pop(_name, None)
 os.environ["NO_COLOR"] = "1"
+os.environ["_TYPER_FORCE_DISABLE_TERMINAL"] = "1"
 
 
 @pytest.fixture(autouse=True)

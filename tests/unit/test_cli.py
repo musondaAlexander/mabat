@@ -18,11 +18,16 @@ def test_version_command() -> None:
     assert mabat.__version__ in result.output
 
 
+def _flat(output: str) -> str:
+    """Rich wraps long lines at the console width; compare on collapsed whitespace."""
+    return " ".join(output.split())
+
+
 def test_health_table() -> None:
     result = runner.invoke(app, ["health"])
     assert result.exit_code == 0
     assert "psutil" in result.output
-    assert "core providers available" in result.output
+    assert "core providers available" in _flat(result.output)
 
 
 def test_health_json_is_parseable() -> None:
