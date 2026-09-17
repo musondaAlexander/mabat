@@ -99,6 +99,7 @@ def test_snapshot_options_lists_declared_options() -> None:
         "process_sample_seconds": ("system",),
         "all_partitions": ("storage",),
         "smart": ("storage",),
+        "counters": ("gpu",),
         "connections": ("network",),
     }
 

@@ -30,6 +30,7 @@ FLAGS: dict[str, tuple[str, ...]] = {
     "--all-partitions": ("all_partitions",),
     "--no-smart": ("smart",),
     "--connections": ("connections",),
+    "--counters": ("counters",),
 }
 
 
@@ -44,6 +45,7 @@ def collector_options(
     all_partitions: bool = False,
     no_smart: bool = False,
     connections: bool = False,
+    counters: bool = False,
 ) -> dict[str, Any]:
     """Collector options from CLI flag values; flags left at their default are absent."""
     options: dict[str, Any] = {}
@@ -58,6 +60,8 @@ def collector_options(
         options["smart"] = False
     if connections:
         options["connections"] = True
+    if counters:
+        options["counters"] = True
     return options
 
 

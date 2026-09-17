@@ -71,3 +71,13 @@ def test_settings_is_cached_until_cleared(tmp_path: Path, monkeypatch: pytest.Mo
     assert config.settings() is first
     config.settings.cache_clear()
     assert config.settings().top_processes == 1
+
+
+def test_boolean_settings_accept_only_booleans(tmp_path: Path) -> None:
+    good = tmp_path / "good.toml"
+    good.write_text("[gpu]\ncounters = true\n")
+    assert config.load_settings(good).gpu_counters is True
+    bad = tmp_path / "bad.toml"
+    bad.write_text("[gpu]\ncounters = 1\n")
+    with pytest.raises(config.SettingsError, match="true or false"):
+        config.load_settings(bad)

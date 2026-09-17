@@ -28,6 +28,12 @@ hidden_interface_patterns = ["Loopback*", "lo"]
 # address the outbound-IP probe "connects" a UDP socket to; no packet is ever sent
 probe_address = "8.8.8.8"
 
+[gpu]
+# read Windows GPU performance counters (Task Manager's numbers) for adapters without a
+# vendor library, e.g. an AMD or Intel iGPU. Costs ~3-5 s per call, so off by default;
+# `mabat show gpu --counters` turns it on for one call
+counters = false
+
 [redaction]
 # field names whose string values `--redact` / mabat.redact() replace with "[redacted]"
 # before a snapshot is shared: identity, addresses and serials

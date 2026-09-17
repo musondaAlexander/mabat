@@ -57,6 +57,7 @@ class Settings:
     thresholds: Thresholds
     hidden_interface_patterns: tuple[str, ...]
     probe_address: str
+    gpu_counters: bool
     redaction_keys: frozenset[str]
 
 
@@ -72,6 +73,7 @@ _SCHEMA: dict[tuple[str, str], tuple[type, ...]] = {
     ("thresholds", "temperature_critical_c"): (int, float),
     ("network", "hidden_interface_patterns"): (list,),
     ("network", "probe_address"): (str,),
+    ("gpu", "counters"): (bool,),
     ("redaction", "keys"): (list,),
 }
 
@@ -92,7 +94,10 @@ def _validate(raw: Mapping[str, Any], origin: str) -> None:
             expected = _SCHEMA.get((table, key))
             if expected is None:
                 raise SettingsError(f"{origin}: unknown setting [{table}] {key}")
-            if isinstance(value, bool) or not isinstance(value, expected):
+            if bool in expected:
+                if not isinstance(value, bool):
+                    raise SettingsError(f"{origin}: [{table}] {key} must be true or false")
+            elif isinstance(value, bool) or not isinstance(value, expected):
                 raise SettingsError(f"{origin}: [{table}] {key} has the wrong type")
 
 
@@ -140,6 +145,7 @@ def _build(raw: Mapping[str, Any]) -> Settings:
             str(pattern) for pattern in raw["network"]["hidden_interface_patterns"]
         ),
         probe_address=probe,
+        gpu_counters=bool(raw["gpu"]["counters"]),
         redaction_keys=frozenset(str(key) for key in raw["redaction"]["keys"]),
     )
 

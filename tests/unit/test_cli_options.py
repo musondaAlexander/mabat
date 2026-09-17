@@ -176,3 +176,9 @@ def test_global_no_color_and_width_flags() -> None:
 
 def test_completion_is_available() -> None:
     assert "--install-completion" in runner.invoke(app, ["--help"]).output
+
+
+def test_counters_flag_applies_to_gpu_only() -> None:
+    result = runner.invoke(app, ["show", "cpu", "--counters"])
+    assert result.exit_code == 2 and "gpu" in result.output
+    assert targets.collector_options(counters=True) == {"counters": True}

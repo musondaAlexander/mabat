@@ -43,7 +43,7 @@ class Snapshot:
     storage: Section[StorageReport] = field(
         metadata={COLLECTOR_KEY: storage, OPTIONS_KEY: ("all_partitions", "smart")}
     )
-    gpu: Section[GpuReport] = field(metadata={COLLECTOR_KEY: gpu})
+    gpu: Section[GpuReport] = field(metadata={COLLECTOR_KEY: gpu, OPTIONS_KEY: ("counters",)})
     sensors: Section[SensorsReport] = field(metadata={COLLECTOR_KEY: sensors})
     network: Section[NetworkReport] = field(
         metadata={COLLECTOR_KEY: network, OPTIONS_KEY: ("connections",)}

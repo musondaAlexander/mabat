@@ -286,3 +286,143 @@ def test_gpu_on_this_machine_serialises() -> None:
     if payload["available"]:
         for device in payload["data"]["devices"]:
             assert {"name", "physical", "sources", "telemetry"} <= set(device)
+
+
+# --- Windows performance counters ---------------------------------------------------------
+
+COUNTER_PAYLOAD = {
+    "engines": {
+        "0x00000000_0x00012107|3d": 4.5,
+        "0x00000000_0x00012107|copy": 0.6,
+        "0x00000000_0x00012107|videodecode": 12.0,
+        "0x00000000_0x00016c89|3d": 1.0,  # the NVIDIA board: NVML must keep precedence
+        "0x00000000_0x00016c26|3d": 0.0,  # Basic Render Driver: no matching device
+        "0x00000000_0x0000ffff|3d": 9.0,  # counters without a registry description
+    },
+    "memory": {
+        "0x00000000_0x00012107|dedicated": 403.0 * 2**20,
+        "0x00000000_0x00012107|shared": 239.0 * 2**20,
+        "0x00000000_0x00016c89|dedicated": 100.0,
+    },
+    "adapters": [
+        {
+            "description": "AMD Radeon(TM) Graphics",
+            "luid": "0x00000000_0x0001debd",
+            "dedicated_total": 520_093_696,
+        },
+        {
+            "description": "AMD Radeon(TM) Graphics",
+            "luid": "0x00000000_0x00012107",
+            "dedicated_total": 520_093_696,
+        },
+        {
+            "description": "NVIDIA GeForce RTX 3050 Laptop GPU",
+            "luid": "0x00000000_0x00016C89",
+            "dedicated_total": 4_154_458_112,
+        },
+        {
+            "description": "Microsoft Basic Render Driver",
+            "luid": "0x00000000_0x00016c26",
+            "dedicated_total": 0,
+        },
+    ],
+}
+
+
+def test_counters_parse_takes_busiest_engine_and_dedicated_memory() -> None:
+    from mabat.sections.gpu import counters
+
+    readings = {r.name: r for r in counters.parse(COUNTER_PAYLOAD)}
+    assert set(readings) == {
+        "AMD Radeon(TM) Graphics",
+        "NVIDIA GeForce RTX 3050 Laptop GPU",
+        "Microsoft Basic Render Driver",
+    }  # the undescribed LUID is dropped; the stale Radeon LUID never had counters
+    radeon = readings["AMD Radeon(TM) Graphics"].telemetry
+    assert radeon.utilization_percent == 12.0  # busiest engine type, Task Manager style
+    assert radeon.engine_percent == {"3d": 4.5, "copy": 0.6, "videodecode": 12.0}
+    assert radeon.decoder_percent == 12.0 and radeon.encoder_percent is None
+    assert radeon.memory is not None and radeon.memory.total_bytes == 520_093_696
+    assert radeon.memory.used_bytes == 403 * 2**20 and radeon.memory.percent == 81.2
+    assert radeon.shared_memory_used_bytes == 239 * 2**20
+    assert radeon.temperature_c is None and radeon.clocks is None
+    basic = readings["Microsoft Basic Render Driver"].telemetry
+    assert basic.memory is None  # no dedicated total -> no memory figure
+
+
+def test_counters_parse_tolerates_garbage() -> None:
+    from mabat.sections.gpu import counters
+
+    assert counters.parse(None) == ()
+    assert counters.parse({"engines": "nope", "memory": [], "adapters": {}}) == ()
+    assert counters.parse({"engines": {"bad key": 1.0}, "adapters": [{"luid": "x"}]}) == ()
+
+
+def test_apply_counters_only_fills_adapters_without_telemetry(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from mabat.sections.gpu import counters
+
+    monkeypatch.setattr(plat, "optional_import", lambda name: _fake_pynvml())
+    nvml_devices, _ = nvml.read_nvml(Problems()) or ((), None)
+    radeon = _device("AMD Radeon(TM) Graphics")
+    devices = collector.merge(nvml_devices, (radeon,))
+    updated = collector.apply_counters(devices, counters.parse(COUNTER_PAYLOAD))
+    nvidia, amd = updated
+    assert (
+        nvidia.telemetry is not None and nvidia.telemetry.utilization_percent == 42.0
+    )  # NVML kept
+    assert "perfcounters" not in nvidia.sources
+    assert amd.telemetry is not None and amd.telemetry.utilization_percent == 12.0
+    assert amd.sources[-1] == "perfcounters" and amd.memory_total_bytes == 520_093_696
+
+
+def test_read_counters_platform_and_failure_paths(monkeypatch: pytest.MonkeyPatch) -> None:
+    from mabat.sections.gpu import counters
+
+    monkeypatch.setattr(plat, "IS_WINDOWS", False)
+    problems = Problems()
+    assert counters.read_counters(problems) is None
+    assert problems.freeze()[0].kind is ProblemKind.UNSUPPORTED_PLATFORM
+
+    monkeypatch.setattr(plat, "IS_WINDOWS", True)
+    monkeypatch.setattr(plat, "run_powershell", _powershell(json.dumps(COUNTER_PAYLOAD)))
+    problems = Problems()
+    readings = counters.read_counters(problems)
+    assert readings is not None and len(readings) == 3 and not problems
+
+    monkeypatch.setattr(plat, "run_powershell", _powershell("null"))
+    problems = Problems()
+    assert counters.read_counters(problems) == ()
+    assert problems.freeze()[0].kind is ProblemKind.NOT_PRESENT
+
+    def failing(script: str, **kw: object) -> None:
+        raise plat.CommandTimeoutError("'powershell' did not finish within 30s")
+
+    monkeypatch.setattr(plat, "run_powershell", failing)
+    problems = Problems()
+    assert counters.read_counters(problems) is None
+    assert problems.freeze()[0].kind is ProblemKind.BACKEND_ERROR
+
+
+def test_gpu_counters_option_is_off_by_default_and_routes(monkeypatch: pytest.MonkeyPatch) -> None:
+    calls: list[str] = []
+
+    def spy(script: str, **kw: object) -> plat.CommandResult:
+        calls.append("counters" if "GPU Engine" in script else "wmi")
+        payload = COUNTER_PAYLOAD if "GPU Engine" in script else WMI_ROWS
+        return plat.CommandResult(("powershell",), 0, json.dumps(payload), "")
+
+    monkeypatch.setattr(plat, "IS_WINDOWS", True)
+    monkeypatch.setattr(plat, "optional_import", lambda name: None)
+    monkeypatch.setattr(plat, "run_powershell", spy)
+    mabat.gpu()
+    assert "counters" not in calls
+    section = mabat.gpu(counters=True)
+    assert "counters" in calls
+    assert section.data is not None
+    radeon = next(d for d in section.data.devices if d.name.startswith("AMD"))
+    assert radeon.telemetry is not None and radeon.telemetry.utilization_percent == 12.0
+    assert "counters" in mabat.snapshot_options() and mabat.snapshot_options()["counters"] == (
+        "gpu",
+    )

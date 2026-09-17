@@ -43,6 +43,10 @@ class GpuTelemetry:
     pcie_generation: int | None
     pcie_width: int | None
     processes: int | None
+    # Windows performance counters only: load per engine type (3d, copy, videodecode ...)
+    # and memory shared with system RAM. None for NVML readings.
+    engine_percent: dict[str, float] | None = None
+    shared_memory_used_bytes: int | None = None
 
 
 @dataclass(frozen=True, slots=True)

@@ -62,6 +62,13 @@ ConnectionsFlag = Annotated[
     bool, typer.Option("--connections", help="network: include the socket table.")
 ]
 AllFlag = Annotated[bool, typer.Option("--all", help="network: show hidden interfaces too.")]
+CountersFlag = Annotated[
+    bool,
+    typer.Option(
+        "--counters",
+        help="gpu: read Windows performance counters for non-NVIDIA adapters (~5 s).",
+    ),
+]
 LogOpt = Annotated[
     Path | None,
     typer.Option("--log", help="Append every reading to this file as NDJSON, one per line."),
@@ -154,6 +161,7 @@ def show(
     all_partitions: AllPartitionsFlag = False,
     no_smart: NoSmartFlag = False,
     connections: ConnectionsFlag = False,
+    counters: CountersFlag = False,
     all_: AllFlag = False,
 ) -> None:
     """Read one section once (e.g. `mabat show cpu`). Exit status 1 if nothing could be read."""
@@ -163,6 +171,7 @@ def show(
         all_partitions=all_partitions,
         no_smart=no_smart,
         connections=connections,
+        counters=counters,
     )
     target = Target(section, options=options, show_hidden=all_)
     _emit(target, target.collect(), json_, redact)
@@ -179,6 +188,7 @@ def snapshot(
     all_partitions: AllPartitionsFlag = False,
     no_smart: NoSmartFlag = False,
     connections: ConnectionsFlag = False,
+    counters: CountersFlag = False,
 ) -> None:
     """Every section at once: a one-screen overview, or one JSON document with --json."""
     options = collector_options(
@@ -187,6 +197,7 @@ def snapshot(
         all_partitions=all_partitions,
         no_smart=no_smart,
         connections=connections,
+        counters=counters,
     )
     target = Target(SNAPSHOT, options=options, only=_split(only), skip=_split(skip))
     _emit(target, target.collect(), json_, redact)
@@ -243,6 +254,7 @@ def watch(
     all_partitions: AllPartitionsFlag = False,
     no_smart: NoSmartFlag = False,
     connections: ConnectionsFlag = False,
+    counters: CountersFlag = False,
     all_: AllFlag = False,
 ) -> None:
     """Refresh a section - or the whole snapshot - live (e.g. `mabat watch cpu`).
@@ -257,6 +269,7 @@ def watch(
         all_partitions=all_partitions,
         no_smart=no_smart,
         connections=connections,
+        counters=counters,
     )
     target = Target(
         section, options=options, only=_split(only), skip=_split(skip), show_hidden=all_

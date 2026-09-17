@@ -61,8 +61,15 @@ def _telemetry(t: GpuTelemetry) -> RenderableType:
                 f"{DOT}{fmt_bytes(t.memory.used_bytes)} of {fmt_bytes(t.memory.total_bytes)}",
             ),
         )
+    if t.shared_memory_used_bytes is not None:
+        table.add_row("shared memory", fmt_bytes(t.shared_memory_used_bytes))
     if t.memory_controller_percent is not None:
         table.add_row("memory bus", pct_text(t.memory_controller_percent))
+    if t.engine_percent:
+        table.add_row(
+            "engines",
+            DOT.join(f"{name} {load:g} %" for name, load in t.engine_percent.items()),
+        )
     if t.encoder_percent is not None or t.decoder_percent is not None:
         table.add_row(
             "video",
