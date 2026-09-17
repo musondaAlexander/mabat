@@ -1,0 +1,26 @@
+# Mirrors scripts/check.py. Fast formatting/lint checks run on every commit; the full
+# gates (mypy + pytest, ~45 s) run before a push so a red commit never leaves the machine.
+#
+#   pip install pre-commit
+#   pre-commit install --hook-type pre-commit --hook-type pre-push
+#
+# All hooks are `language: system`: they use the tools already in the active venv.
+repos:
+  - repo: local
+    hooks:
+      - id: ruff-format
+        name: ruff format
+        entry: ruff format
+        language: system
+        types: [python]
+      - id: ruff-check
+        name: ruff check (autofix)
+        entry: ruff check --fix
+        language: system
+        types: [python]
+      - id: gates
+        name: quality gates (format, lint, mypy, pytest)
+        entry: python scripts/check.py
+        language: system
+        pass_filenames: false
+        stages: [pre-push]
