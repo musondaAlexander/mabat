@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import atexit
+import ctypes
 from datetime import UTC, datetime
 
 import pytest
@@ -314,3 +316,59 @@ def test_render_snapshot_status_and_summaries() -> None:
     assert "unavailable" in text and "pip install nvidia-ml-py" in text
     assert "More." not in text  # only the first sentence of a reason
     assert text.count("skipped") >= 4
+
+
+# --- Windows console: virtual-terminal processing -----------------------------------------
+
+
+def _fake_kernel32(monkeypatch: pytest.MonkeyPatch, mode: int | None) -> list[int]:
+    """Stand in for ``ctypes.WinDLL('kernel32')``; ``mode=None`` means stdout is no console.
+    Returns the list of modes handed to ``SetConsoleMode``."""
+    set_modes: list[int] = []
+
+    class Kernel32:
+        def __init__(self, name: str, use_last_error: bool = False) -> None:
+            self.GetStdHandle = lambda which: 7  # Win32 spelling, as ctypes sees it
+            self.GetConsoleMode = self._get_mode
+            self.SetConsoleMode = self._set_mode
+
+        @staticmethod
+        def _get_mode(handle: int, out: object) -> int:
+            if mode is None:
+                return 0
+            out._obj.value = mode  # type: ignore[attr-defined]  # ctypes.byref() argument
+            return 1
+
+        @staticmethod
+        def _set_mode(handle: int, new_mode: int) -> int:
+            set_modes.append(new_mode)
+            return 1
+
+    monkeypatch.setattr(ctypes, "WinDLL", Kernel32, raising=False)
+    monkeypatch.setattr(atexit, "register", lambda *args: None)
+    return set_modes
+
+
+def test_vt_processing_is_switched_on_when_the_console_lacks_it(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    set_modes = _fake_kernel32(monkeypatch, mode=0x0003)
+    assert common.enable_vt_processing() is True
+    assert set_modes == [0x0003 | common._ENABLE_VIRTUAL_TERMINAL_PROCESSING]
+
+
+def test_vt_processing_is_left_alone_when_already_on(monkeypatch: pytest.MonkeyPatch) -> None:
+    set_modes = _fake_kernel32(monkeypatch, mode=0x0007)
+    assert common.enable_vt_processing() is True
+    assert set_modes == []
+
+
+def test_vt_processing_is_a_no_op_off_a_console(monkeypatch: pytest.MonkeyPatch) -> None:
+    set_modes = _fake_kernel32(monkeypatch, mode=None)
+    assert common.enable_vt_processing() is False
+    assert set_modes == []
+
+
+def test_vt_processing_is_a_no_op_off_windows(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delattr(ctypes, "WinDLL", raising=False)
+    assert common.enable_vt_processing() is False

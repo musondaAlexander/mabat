@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import atexit
+import ctypes
+
 from rich.console import Console, Group, RenderableType
 from rich.table import Table
 from rich.text import Text
@@ -9,6 +12,47 @@ from rich.text import Text
 from mabat._shared.config import settings
 from mabat._shared.models import Section
 
+# rich picks its renderer when a Console is built: escape sequences if the Windows console
+# already has virtual-terminal processing on, otherwise a Win32 fallback that is limited to
+# 16 colours and cannot clear the screen (`clear` in interactive mode only homed the
+# cursor, so the banner landed on top of the old output). Classic console windows leave
+# the flag off; switch it on before the consoles below exist, and put it back on exit.
+_STD_OUTPUT_HANDLE = 0xFFFFFFF5  # (DWORD)-11
+_ENABLE_VIRTUAL_TERMINAL_PROCESSING = 0x0004
+
+
+def enable_vt_processing() -> bool:
+    """Turn on escape-sequence processing for the Windows console; True when it is on.
+
+    False, and nothing changed, off Windows, when stdout is not a console (a pipe, a file,
+    a test capture) or when the console refuses (Windows 10 builds before 2016).
+    """
+    load_dll = getattr(ctypes, "WinDLL", None)  # only exists on Windows
+    if load_dll is None:
+        return False
+    try:
+        kernel32 = load_dll("kernel32", use_last_error=True)  # own instance: no shared state
+        kernel32.GetStdHandle.argtypes = (ctypes.c_uint32,)
+        kernel32.GetStdHandle.restype = ctypes.c_void_p
+        kernel32.GetConsoleMode.argtypes = (ctypes.c_void_p, ctypes.POINTER(ctypes.c_uint32))
+        kernel32.GetConsoleMode.restype = ctypes.c_int
+        kernel32.SetConsoleMode.argtypes = (ctypes.c_void_p, ctypes.c_uint32)
+        kernel32.SetConsoleMode.restype = ctypes.c_int
+        handle = kernel32.GetStdHandle(_STD_OUTPUT_HANDLE)
+        mode = ctypes.c_uint32()
+        if not handle or not kernel32.GetConsoleMode(handle, ctypes.byref(mode)):
+            return False
+        if mode.value & _ENABLE_VIRTUAL_TERMINAL_PROCESSING:
+            return True
+        if not kernel32.SetConsoleMode(handle, mode.value | _ENABLE_VIRTUAL_TERMINAL_PROCESSING):
+            return False
+        atexit.register(kernel32.SetConsoleMode, handle, mode.value)
+        return True
+    except (AttributeError, OSError):
+        return False
+
+
+enable_vt_processing()
 console = Console()
 error_console = Console(stderr=True)
 
